@@ -37,6 +37,17 @@ describe("Generate arbitaries for Zod schema input type", () => {
       z.object({ id: z.number() }),
       z.array(z.boolean())
     ),
+    "literal number": z.literal(123.5),
+    "literal string": z.literal("hello"),
+    "literal boolean": z.literal(false),
+
+    any: z.any(),
+    unknown: z.unknown(),
+    void: z.void(),
+    "optional number": z.optional(z.number()),
+    "optional boolean": z.optional(z.boolean()),
+    "nullable string": z.nullable(z.string()),
+    "nullable object": z.nullable(z.object({ age: z.number() })),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {

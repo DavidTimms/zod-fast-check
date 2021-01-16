@@ -1,8 +1,12 @@
 import fc, { Arbitrary } from "fast-check";
-import { ZodDef, ZodType, ZodTypeDef, ZodTypes } from "zod";
+import { ZodDef, ZodOptional, ZodType, ZodTypeDef, ZodTypes } from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
+import { ZodLazyDef } from "zod/lib/cjs/types/lazy";
+import { ZodLiteralDef } from "zod/lib/cjs/types/literal";
 import { ZodMapDef } from "zod/lib/cjs/types/map";
+import { ZodNullableDef } from "zod/lib/cjs/types/nullable";
 import { ZodObjectDef } from "zod/lib/cjs/types/object";
+import { ZodOptionalDef } from "zod/lib/cjs/types/optional";
 import { ZodRecordDef } from "zod/lib/cjs/types/record";
 import { ZodTupleDef } from "zod/lib/cjs/types/tuple";
 import { ZodUnionDef } from "zod/lib/cjs/types/union";
@@ -76,11 +80,11 @@ const arbitraryBuilder: ArbitraryBuilder = {
   function() {
     throw Error("Function schemas are not yet supported.");
   },
-  lazy() {
+  lazy(def: ZodLazyDef) {
     throw Error("Lazy schemas are not yet supported.");
   },
-  literal() {
-    throw Error("Literal schemas are not yet supported.");
+  literal(def: ZodLiteralDef) {
+    return fc.constant(def.value);
   },
   enum() {
     throw Error("Enum schemas are not yet supported.");
@@ -92,24 +96,26 @@ const arbitraryBuilder: ArbitraryBuilder = {
     throw Error("Promise schemas are not yet supported.");
   },
   any() {
-    throw Error("Any schemas are not yet supported.");
+    return fc.anything();
   },
   unknown() {
-    throw Error("Unknown schemas are not yet supported.");
+    return fc.anything();
   },
   never() {
     throw Error("Never schemas are not yet supported.");
   },
   void() {
-    throw Error("Void schemas are not yet supported.");
+    return fc.constant(undefined);
   },
   transformer() {
     throw Error("Transformer schemas are not yet supported.");
   },
-  optional() {
-    throw Error("Optional schemas are not yet supported.");
+  optional(def: ZodOptionalDef) {
+    const nil = undefined;
+    return fc.option(zodInputArbitrary(def.innerType), { nil, freq: 2 });
   },
-  nullable() {
-    throw Error("Nullable schemas are not yet supported.");
+  nullable(def: ZodNullableDef) {
+    const nil = null;
+    return fc.option(zodInputArbitrary(def.innerType), { nil, freq: 2 });
   },
 };
