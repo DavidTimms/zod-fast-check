@@ -29,6 +29,14 @@ describe("Generate arbitaries for Zod schema input type", () => {
     union: z.union([z.boolean(), z.string()]),
     "empty tuple": z.tuple([]),
     "nonempty tuple": z.tuple([z.string(), z.boolean(), z.date()]),
+    "nested tuple": z.tuple([z.string(), z.tuple([z.number()])]),
+    "record of numbers": z.record(z.number()),
+    "record of objects": z.record(z.object({ name: z.string() })),
+    "map with string keys": z.map(z.string(), z.number()),
+    "map with object keys": z.map(
+      z.object({ id: z.number() }),
+      z.array(z.boolean())
+    ),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {

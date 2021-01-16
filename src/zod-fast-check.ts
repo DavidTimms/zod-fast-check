@@ -1,7 +1,9 @@
 import fc, { Arbitrary } from "fast-check";
 import { ZodDef, ZodType, ZodTypeDef, ZodTypes } from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
+import { ZodMapDef } from "zod/lib/cjs/types/map";
 import { ZodObjectDef } from "zod/lib/cjs/types/object";
+import { ZodRecordDef } from "zod/lib/cjs/types/record";
 import { ZodTupleDef } from "zod/lib/cjs/types/tuple";
 import { ZodUnionDef } from "zod/lib/cjs/types/union";
 
@@ -61,20 +63,15 @@ const arbitraryBuilder: ArbitraryBuilder = {
     throw Error("Intersection schemas are not yet supported.");
   },
   tuple(def: ZodTupleDef) {
-    if (def.items.length > 0) {
-      const [first, ...rest] = def.items.map(zodInputArbitrary);
-      return (fc.tuple as (
-        ...arbs: Array<Arbitrary<unknown>>
-      ) => Arbitrary<unknown>)(first, ...rest);
-    } else {
-      return fc.constant([]);
-    }
+    return fc.genericTuple(def.items.map(zodInputArbitrary));
   },
-  record() {
-    throw Error("Record schemas are not yet supported.");
+  record(def: ZodRecordDef) {
+    return fc.dictionary(fc.string(), zodInputArbitrary(def.valueType));
   },
-  map() {
-    throw Error("Map schemas are not yet supported.");
+  map(def: ZodMapDef) {
+    const key = zodInputArbitrary(def.keyType);
+    const value = zodInputArbitrary(def.valueType);
+    return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
   function() {
     throw Error("Function schemas are not yet supported.");
