@@ -67,6 +67,24 @@ describe("Generate arbitaries for Zod schema input type", () => {
     "optional boolean": z.optional(z.boolean()),
     "nullable string": z.nullable(z.string()),
     "nullable object": z.nullable(z.object({ age: z.number() })),
+
+    // Schemas which rely on refinements
+    "number with minimum": z.number().min(500),
+    "number with maximum": z.number().max(500),
+    int: z.number().int(),
+    positive: z.number().positive(),
+    negative: z.number().negative(),
+    nonpositive: z.number().nonpositive(),
+    nonnegative: z.number().nonnegative(),
+    "number with custom refinement": z.number().refine((x) => x % 3 === 0),
+
+    "string with minimum length": z.string().min(24),
+    "string with maximum length": z.string().max(24),
+
+    // This test is disabled because it is incredibly slow.
+    // This is due to the brute force approach to generating strings
+    // of the correct length which is currently used.
+    // "string with fixed length": z.string().length(24),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {

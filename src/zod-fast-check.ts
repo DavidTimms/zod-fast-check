@@ -1,5 +1,12 @@
 import fc, { Arbitrary } from "fast-check";
-import { ZodDef, ZodOptional, ZodType, ZodTypeDef, ZodTypes } from "zod";
+import {
+  RefinementCtx,
+  ZodDef,
+  ZodOptional,
+  ZodType,
+  ZodTypeDef,
+  ZodTypes,
+} from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
 import { ZodEnumDef } from "zod/lib/cjs/types/enum";
 import { ZodLazyDef } from "zod/lib/cjs/types/lazy";
@@ -25,12 +32,14 @@ export function zodInputArbitrary<Input>(
   const builder = arbitraryBuilder[def.t] as (
     def: ZodDef
   ) => Arbitrary<unknown>;
-  return builder(def) as Arbitrary<Input>;
+
+  const arbitrary = builder(def) as Arbitrary<Input>;
+  return filterByRefinements(arbitrary, def);
 }
 
 const arbitraryBuilder: ArbitraryBuilder = {
   string() {
-    return fc.unicodeString();
+    return fc.unicodeString({ maxLength: 512 });
   },
   number() {
     return fc.double({ next: true, noNaN: true });
@@ -123,3 +132,30 @@ const arbitraryBuilder: ArbitraryBuilder = {
     return fc.option(zodInputArbitrary(def.innerType), { nil, freq: 2 });
   },
 };
+
+function filterByRefinements(
+  arbitrary: Arbitrary<any>,
+  def: ZodDef
+): Arbitrary<any> {
+  const checks = def.checks;
+  if (!checks || checks.length === 0) {
+    return arbitrary;
+  }
+
+  return arbitrary.filter((value) => {
+    let isValid = true;
+
+    const context: RefinementCtx = {
+      addIssue: () => {
+        isValid = false;
+      },
+      path: [],
+    };
+
+    for (let i = 0; isValid && i < checks.length; i++) {
+      checks[i].check(value, context);
+    }
+
+    return isValid;
+  });
+}
