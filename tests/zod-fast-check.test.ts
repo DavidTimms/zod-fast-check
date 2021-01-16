@@ -3,14 +3,26 @@ import * as z from "zod";
 import { zodInputArbitrary } from "../src/zod-fast-check";
 
 describe("Generate arbitaries for Zod schema input type", () => {
+  enum Biscuits {
+    Digestive,
+    CustardCream,
+    RichTea,
+  }
+
+  enum Cakes {
+    CarrotCake = "CARROT_CAKE",
+    ChocolateCake = "CHOCOLATE_CAKE",
+    VictoriaSponge = "VICTORIA_SPONGE",
+  }
+
   const schemas = {
-    null: z.null(),
-    undefined: z.undefined(),
     string: z.string(),
     number: z.number(),
     bigint: z.bigint(),
     boolean: z.boolean(),
     date: z.date(),
+    undefined: z.undefined(),
+    null: z.null(),
     "array of numbers": z.array(z.number()),
     "array of string": z.array(z.string()),
     "array of arrays of booleans": z.array(z.array(z.boolean())),
@@ -40,7 +52,14 @@ describe("Generate arbitaries for Zod schema input type", () => {
     "literal number": z.literal(123.5),
     "literal string": z.literal("hello"),
     "literal boolean": z.literal(false),
-
+    enum: z.enum(["Bear", "Wolf", "Fox"]),
+    "native enum with numeric values": z.nativeEnum(Biscuits),
+    "native enum with string values": z.nativeEnum(Cakes),
+    "const enum": z.nativeEnum({
+      Duck: "duck",
+      Swan: "swan",
+      Goose: 3,
+    }),
     any: z.any(),
     unknown: z.unknown(),
     void: z.void(),

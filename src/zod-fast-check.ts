@@ -1,15 +1,18 @@
 import fc, { Arbitrary } from "fast-check";
 import { ZodDef, ZodOptional, ZodType, ZodTypeDef, ZodTypes } from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
+import { ZodEnumDef } from "zod/lib/cjs/types/enum";
 import { ZodLazyDef } from "zod/lib/cjs/types/lazy";
 import { ZodLiteralDef } from "zod/lib/cjs/types/literal";
 import { ZodMapDef } from "zod/lib/cjs/types/map";
+import { ZodNativeEnumDef } from "zod/lib/cjs/types/nativeEnum";
 import { ZodNullableDef } from "zod/lib/cjs/types/nullable";
 import { ZodObjectDef } from "zod/lib/cjs/types/object";
 import { ZodOptionalDef } from "zod/lib/cjs/types/optional";
 import { ZodRecordDef } from "zod/lib/cjs/types/record";
 import { ZodTupleDef } from "zod/lib/cjs/types/tuple";
 import { ZodUnionDef } from "zod/lib/cjs/types/union";
+import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 
 type ArbitraryBuilder = {
   [TypeName in ZodTypes]: (def: ZodDef & { t: TypeName }) => Arbitrary<unknown>;
@@ -86,11 +89,12 @@ const arbitraryBuilder: ArbitraryBuilder = {
   literal(def: ZodLiteralDef) {
     return fc.constant(def.value);
   },
-  enum() {
-    throw Error("Enum schemas are not yet supported.");
+  enum(def: ZodEnumDef) {
+    return fc.oneof(...def.values.map(fc.constant));
   },
-  nativeEnum() {
-    throw Error("NativeEnum schemas are not yet supported.");
+  nativeEnum(def: ZodNativeEnumDef) {
+    const enumValues = zodUtils.getValidEnumValues(def.values);
+    return fc.oneof(...enumValues.map(fc.constant));
   },
   promise() {
     throw Error("Promise schemas are not yet supported.");
