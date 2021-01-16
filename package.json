@@ -10,6 +10,7 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "jest": "^26.6.3",
+    "prettier": "^2.2.1",
     "ts-jest": "^26.4.4",
     "typescript": "^4.1.3"
   },
