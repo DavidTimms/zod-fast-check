@@ -1,17 +1,7 @@
 import fc, { Arbitrary } from "fast-check";
-import {
-  RefinementCtx,
-  ZodDef,
-  ZodOptional,
-  ZodSchema,
-  ZodTransformer,
-  ZodType,
-  ZodTypeDef,
-  ZodTypes,
-} from "zod";
+import { RefinementCtx, ZodDef, ZodSchema, ZodTypeDef, ZodTypes } from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
 import { ZodEnumDef } from "zod/lib/cjs/types/enum";
-import { ZodLazyDef } from "zod/lib/cjs/types/lazy";
 import { ZodLiteralDef } from "zod/lib/cjs/types/literal";
 import { ZodMapDef } from "zod/lib/cjs/types/map";
 import { ZodNativeEnumDef } from "zod/lib/cjs/types/nativeEnum";
