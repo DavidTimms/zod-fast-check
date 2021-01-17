@@ -1,8 +1,8 @@
 import fc from "fast-check";
 import * as z from "zod";
-import { zodInputArbitrary } from "../src/zod-fast-check";
+import { zodInputArbitrary, zodOutputArbitrary } from "../src/zod-fast-check";
 
-describe("Generate arbitaries for Zod schema input type", () => {
+describe("Generate arbitaries for Zod schema input types", () => {
   enum Biscuits {
     Digestive,
     CustardCream,
@@ -85,11 +85,16 @@ describe("Generate arbitaries for Zod schema input type", () => {
     // This is due to the brute force approach to generating strings
     // of the correct length which is currently used.
     // "string with fixed length": z.string().length(24),
+
+    "number to string transformer": z.number().transform(z.string(), String),
+    "deeply nested transformer": z.array(
+      z.boolean().transform(z.number(), Number)
+    ),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
     test(name, () => {
-      const arbitrary = zodInputArbitrary<z.infer<typeof schema>>(schema);
+      const arbitrary = zodInputArbitrary(schema);
       return fc.assert(
         fc.property(arbitrary, (value) => {
           schema.parse(value);
@@ -97,4 +102,62 @@ describe("Generate arbitaries for Zod schema input type", () => {
       );
     });
   }
+});
+
+describe("Generate arbitaries for Zod schema output types", () => {
+  test("number to string transformer", () => {
+    const targetSchema = z.string().refine((s) => !isNaN(+s));
+    const schema = z.number().transform(targetSchema, String);
+
+    const arbitrary = zodOutputArbitrary(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("transformer within a transformer", () => {
+    // This schema accepts an array of booleans and converts them
+    // to strings with exclamation marks then concatenates them.
+    const targetSchema = z.string().regex(/(true\!|false\!)*/);
+    const schema = z
+      .array(z.boolean().transform(z.string(), (bool) => `${bool}!`))
+      .transform(targetSchema, (array) => array.join(""));
+
+    const arbitrary = zodOutputArbitrary(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("doubling transformer", () => {
+    // Above this, doubling the number makes it too big to represent,
+    // so it gets rounded to infinity.
+    const MAX = 1e307;
+    const MIN = -MAX;
+
+    const targetSchema = z
+      .number()
+      .int()
+      .refine((x) => x % 2 === 0);
+    const schema = z
+      .number()
+      .int()
+      .refine((x) => x < MAX && x > MIN)
+      .transform(targetSchema, (x) => x * 2);
+
+    const arbitrary = zodOutputArbitrary(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        // console.log(value);
+        targetSchema.parse(value);
+      })
+    );
+  });
 });
