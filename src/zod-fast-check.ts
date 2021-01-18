@@ -14,6 +14,7 @@ import { ZodUnionDef } from "zod/lib/cjs/types/union";
 import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 import { ZodTransformerDef } from "zod/lib/cjs/types/transformer";
 import { ZodPromiseDef } from "zod/lib/cjs/types/promise";
+import { ZodFunctionDef } from "zod/lib/cjs/types/function";
 
 type ZodSchemaToArbitrary = (
   schema: ZodSchema<any, any, any>
@@ -104,8 +105,8 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
     const value = recurse(def.valueType);
     return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
-  function() {
-    throw Error("Function schemas are not yet supported.");
+  function(def: ZodFunctionDef, recurse: ZodSchemaToArbitrary) {
+    return recurse(def.returns).map((returnValue) => () => returnValue);
   },
   lazy() {
     throw Error("Lazy schemas are not yet supported.");

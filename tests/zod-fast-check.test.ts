@@ -49,6 +49,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
       z.object({ id: z.number() }),
       z.array(z.boolean())
     ),
+    "function returning boolean": z.function().returns(z.boolean()),
     "literal number": z.literal(123.5),
     "literal string": z.literal("hello"),
     "literal boolean": z.literal(false),
