@@ -60,6 +60,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
       Swan: "swan",
       Goose: 3,
     }),
+    promise: z.promise(z.string()),
     any: z.any(),
     unknown: z.unknown(),
     void: z.void(),
@@ -96,8 +97,8 @@ describe("Generate arbitaries for Zod schema input types", () => {
     test(name, () => {
       const arbitrary = zodInputArbitrary(schema);
       return fc.assert(
-        fc.property(arbitrary, (value) => {
-          schema.parse(value);
+        fc.asyncProperty(arbitrary, async (value) => {
+          await schema.parse(value);
         })
       );
     });
@@ -129,8 +130,8 @@ describe("Generate arbitaries for Zod schema output types", () => {
     const arbitrary = zodOutputArbitrary(schema);
 
     return fc.assert(
-      fc.property(arbitrary, (value) => {
-        targetSchema.parse(value);
+      fc.asyncProperty(arbitrary, async (value) => {
+        await targetSchema.parse(value);
       })
     );
   });

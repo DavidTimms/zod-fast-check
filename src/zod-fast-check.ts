@@ -13,6 +13,7 @@ import { ZodTupleDef } from "zod/lib/cjs/types/tuple";
 import { ZodUnionDef } from "zod/lib/cjs/types/union";
 import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 import { ZodTransformerDef } from "zod/lib/cjs/types/transformer";
+import { ZodPromiseDef } from "zod/lib/cjs/types/promise";
 
 type ZodSchemaToArbitrary = (
   schema: ZodSchema<any, any, any>
@@ -119,8 +120,8 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
     const enumValues = zodUtils.getValidEnumValues(def.values);
     return fc.oneof(...enumValues.map(fc.constant));
   },
-  promise() {
-    throw Error("Promise schemas are not yet supported.");
+  promise(def: ZodPromiseDef, recurse: ZodSchemaToArbitrary) {
+    return recurse(def.type).map((value) => Promise.resolve(value));
   },
   any() {
     return fc.anything();
@@ -129,7 +130,7 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
     return fc.anything();
   },
   never() {
-    throw Error("Never schemas are not yet supported.");
+    throw Error("A runtime value cannot be generated for a 'never' schema.");
   },
   void() {
     return fc.constant(undefined);
