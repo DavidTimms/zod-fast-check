@@ -27,31 +27,50 @@ type ArbitraryBuilder = {
   ) => Arbitrary<unknown>;
 };
 
-export function zodInputArbitrary<Input>(
-  zodSchema: ZodSchema<any, ZodTypeDef, Input>
-): Arbitrary<Input> {
-  const def: ZodDef = zodSchema._def as ZodDef;
-  const builder = inputArbitraryBuilder[def.t] as (
-    def: ZodDef,
-    recurse: ZodSchemaToArbitrary
-  ) => Arbitrary<unknown>;
+class _ZodFastCheck {
+  inputArbitrary<Input>(
+    zodSchema: ZodSchema<any, ZodTypeDef, Input>
+  ): Arbitrary<Input> {
+    const def: ZodDef = zodSchema._def as ZodDef;
+    const builder = inputArbitraryBuilder[def.t] as (
+      def: ZodDef,
+      recurse: ZodSchemaToArbitrary
+    ) => Arbitrary<unknown>;
 
-  const arbitrary = builder(def, zodInputArbitrary) as Arbitrary<Input>;
-  return filterByRefinements(arbitrary, def);
+    const arbitrary = builder(
+      def,
+      this.inputArbitrary.bind(this)
+    ) as Arbitrary<Input>;
+    return filterByRefinements(arbitrary, def);
+  }
+
+  outputArbitrary<Output>(
+    zodSchema: ZodSchema<Output, ZodTypeDef, any>
+  ): Arbitrary<Output> {
+    const def: ZodDef = zodSchema._def as ZodDef;
+    const builder = outputArbitraryBuilder[def.t] as (
+      def: ZodDef,
+      recurse: ZodSchemaToArbitrary
+    ) => Arbitrary<unknown>;
+
+    const arbitrary = builder(
+      def,
+      this.outputArbitrary.bind(this)
+    ) as Arbitrary<Output>;
+    return filterByRefinements(arbitrary, def);
+  }
 }
 
-export function zodOutputArbitrary<Output>(
-  zodSchema: ZodSchema<Output, ZodTypeDef, any>
-): Arbitrary<Output> {
-  const def: ZodDef = zodSchema._def as ZodDef;
-  const builder = outputArbitraryBuilder[def.t] as (
-    def: ZodDef,
-    recurse: ZodSchemaToArbitrary
-  ) => Arbitrary<unknown>;
+export type ZodFastCheck = _ZodFastCheck;
 
-  const arbitrary = builder(def, zodInputArbitrary) as Arbitrary<Output>;
-  return filterByRefinements(arbitrary, def);
+// Wrapper function to allow instantiation without "new"
+export function ZodFastCheck(): ZodFastCheck {
+  return new _ZodFastCheck();
 }
+
+// Reassign the wrapper function's prototype to ensure
+// "instanceof" works as expected.
+ZodFastCheck.prototype = _ZodFastCheck.prototype;
 
 const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
   string() {

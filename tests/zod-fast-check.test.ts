@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import * as z from "zod";
-import { zodInputArbitrary, zodOutputArbitrary } from "../src/zod-fast-check";
+import { ZodFastCheck } from "../src/zod-fast-check";
 
 describe("Generate arbitaries for Zod schema input types", () => {
   enum Biscuits {
@@ -96,7 +96,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
 
   for (const [name, schema] of Object.entries(schemas)) {
     test(name, () => {
-      const arbitrary = zodInputArbitrary(schema);
+      const arbitrary = ZodFastCheck().inputArbitrary(schema);
       return fc.assert(
         fc.asyncProperty(arbitrary, async (value) => {
           await schema.parse(value);
@@ -111,7 +111,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
     const targetSchema = z.string().refine((s) => !isNaN(+s));
     const schema = z.number().transform(targetSchema, String);
 
-    const arbitrary = zodOutputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -128,7 +128,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .array(z.boolean().transform(z.string(), (bool) => `${bool}!`))
       .transform(targetSchema, (array) => array.join(""));
 
-    const arbitrary = zodOutputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
     return fc.assert(
       fc.asyncProperty(arbitrary, async (value) => {
@@ -153,11 +153,10 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .refine((x) => x < MAX && x > MIN)
       .transform(targetSchema, (x) => x * 2);
 
-    const arbitrary = zodOutputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
-        // console.log(value);
         targetSchema.parse(value);
       })
     );
