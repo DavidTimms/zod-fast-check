@@ -162,3 +162,60 @@ describe("Generate arbitaries for Zod schema output types", () => {
     );
   });
 });
+
+describe("Override the arbitrary for a particular schema type", () => {
+  const UUID = z.string().uuid();
+
+  test("using custom UUID arbitrary", () => {
+    const arbitrary = ZodFastCheck()
+      .override(UUID, fc.uuid())
+      .inputArbitrary(UUID);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        UUID.parse(value);
+      })
+    );
+  });
+
+  test("using custom UUID arbitrary in nested schema", () => {
+    const schema = z.object({ ids: z.array(UUID) });
+
+    const arbitrary = ZodFastCheck()
+      .override(UUID, fc.uuid())
+      .inputArbitrary(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        schema.parse(value);
+      })
+    );
+  });
+
+  const IntAsString = z.number().int().transform(z.string(), String);
+
+  test("using custom integer arbitrary for IntAsString input", () => {
+    const arbitrary = ZodFastCheck()
+      .override(IntAsString, fc.integer())
+      .inputArbitrary(IntAsString);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        z.number().int().parse(value);
+      })
+    );
+  });
+
+  test("using custom integer arbitrary for IntAsString output", () => {
+    const arbitrary = ZodFastCheck()
+      .override(IntAsString, fc.integer())
+      .outputArbitrary(IntAsString);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        expect(typeof value).toBe("string");
+        expect(Number(value) === parseInt(value, 10));
+      })
+    );
+  });
+});

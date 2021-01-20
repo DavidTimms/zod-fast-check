@@ -17,7 +17,7 @@ import { ZodPromiseDef } from "zod/lib/cjs/types/promise";
 import { ZodFunctionDef } from "zod/lib/cjs/types/function";
 
 type ZodSchemaToArbitrary = (
-  schema: ZodSchema<any, any, any>
+  schema: ZodSchema<unknown, ZodTypeDef, unknown>
 ) => Arbitrary<unknown>;
 
 type ArbitraryBuilder = {
@@ -27,41 +27,80 @@ type ArbitraryBuilder = {
   ) => Arbitrary<unknown>;
 };
 
-class _ZodFastCheck {
-  inputArbitrary<Input>(
-    zodSchema: ZodSchema<any, ZodTypeDef, Input>
-  ): Arbitrary<Input> {
-    const def: ZodDef = zodSchema._def as ZodDef;
-    const builder = inputArbitraryBuilder[def.t] as (
-      def: ZodDef,
-      recurse: ZodSchemaToArbitrary
-    ) => Arbitrary<unknown>;
+// Use an immediately invoked function expression to avoid
+// having the underscore prefix on the constructor name.
+const _ZodFastCheck = (() =>
+  class ZodFastCheck {
+    private overrides = new Map<
+      ZodSchema<unknown, ZodTypeDef, unknown>,
+      Arbitrary<unknown>
+    >();
 
-    const arbitrary = builder(
-      def,
-      this.inputArbitrary.bind(this)
-    ) as Arbitrary<Input>;
-    return filterByRefinements(arbitrary, def);
-  }
+    private clone(): ZodFastCheck {
+      const cloned = new ZodFastCheck();
+      this.overrides.forEach((arbitrary, schema) => {
+        cloned.overrides.set(schema, arbitrary);
+      });
+      return cloned;
+    }
 
-  outputArbitrary<Output>(
-    zodSchema: ZodSchema<Output, ZodTypeDef, any>
-  ): Arbitrary<Output> {
-    const def: ZodDef = zodSchema._def as ZodDef;
-    const builder = outputArbitraryBuilder[def.t] as (
-      def: ZodDef,
-      recurse: ZodSchemaToArbitrary
-    ) => Arbitrary<unknown>;
+    inputArbitrary<Input>(
+      zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
+    ): Arbitrary<Input> {
+      const def: ZodDef = zodSchema._def as ZodDef;
 
-    const arbitrary = builder(
-      def,
-      this.outputArbitrary.bind(this)
-    ) as Arbitrary<Output>;
-    return filterByRefinements(arbitrary, def);
-  }
-}
+      const override = this.overrides.get(zodSchema) as Arbitrary<Input>;
+      if (override) return override;
 
-export type ZodFastCheck = _ZodFastCheck;
+      const builder = inputArbitraryBuilder[def.t] as (
+        def: ZodDef,
+        recurse: ZodSchemaToArbitrary
+      ) => Arbitrary<unknown>;
+
+      const arbitrary = builder(
+        def,
+        this.inputArbitrary.bind(this)
+      ) as Arbitrary<Input>;
+
+      return filterByRefinements(arbitrary, def);
+    }
+
+    outputArbitrary<Output>(
+      zodSchema: ZodSchema<Output, ZodTypeDef, unknown>
+    ): Arbitrary<Output> {
+      const def: ZodDef = zodSchema._def as ZodDef;
+
+      let override = this.overrides.get(zodSchema);
+
+      if (override) {
+        if (def.t === ZodTypes.transformer) {
+          override = override.map(def.transformer);
+        }
+
+        return override as Arbitrary<Output>;
+      }
+
+      const builder = outputArbitraryBuilder[def.t] as (
+        def: ZodDef,
+        recurse: ZodSchemaToArbitrary
+      ) => Arbitrary<unknown>;
+
+      const arbitrary = (this.overrides.get(zodSchema) ??
+        builder(def, this.outputArbitrary.bind(this))) as Arbitrary<Output>;
+      return filterByRefinements(arbitrary, def);
+    }
+
+    override<Input>(
+      schema: ZodSchema<unknown, ZodTypeDef, Input>,
+      arbitrary: Arbitrary<Input>
+    ): ZodFastCheck {
+      const withOverride = this.clone();
+      withOverride.overrides.set(schema, arbitrary);
+      return withOverride;
+    }
+  })();
+
+export type ZodFastCheck = InstanceType<typeof _ZodFastCheck>;
 
 // Wrapper function to allow instantiation without "new"
 export function ZodFastCheck(): ZodFastCheck {
@@ -179,10 +218,10 @@ const outputArbitraryBuilder: ArbitraryBuilder = {
   },
 };
 
-function filterByRefinements(
-  arbitrary: Arbitrary<any>,
+function filterByRefinements<T>(
+  arbitrary: Arbitrary<T>,
   def: ZodDef
-): Arbitrary<any> {
+): Arbitrary<T> {
   const checks = def.checks;
   if (!checks || checks.length === 0) {
     return arbitrary;
