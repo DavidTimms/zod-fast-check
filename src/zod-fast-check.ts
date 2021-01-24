@@ -113,10 +113,13 @@ ZodFastCheck.prototype = _ZodFastCheck.prototype;
 
 const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
   string() {
-    return fc.unicodeString({ maxLength: 512 });
+    const maxLength = 512;
+    return fc.unicodeString(maxLength);
   },
   number() {
-    return fc.double({ next: true, noNaN: true });
+    const min = -(2 ** 64);
+    const max = 2 ** 64;
+    return fc.double(min, max);
   },
   bigint() {
     return fc.bigInt();
@@ -135,7 +138,8 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
   },
   array(def: ZodArrayDef, recurse: ZodSchemaToArbitrary) {
     const minLength = def.nonempty ? 1 : 0;
-    return fc.array(recurse(def.type), { minLength });
+    const maxLength = 16;
+    return fc.array(recurse(def.type), minLength, maxLength);
   },
   object(def: ZodObjectDef, recurse: ZodSchemaToArbitrary) {
     const propertyArbitraries = Object.fromEntries(
