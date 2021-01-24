@@ -27,10 +27,8 @@ type ArbitraryBuilder = {
   ) => Arbitrary<unknown>;
 };
 
-// Use an immediately invoked function expression to avoid
-// having the underscore prefix on the constructor name.
-const _ZodFastCheck = (() =>
-  class ZodFastCheck {
+namespace zodFastCheck {
+  export class ZodFastCheck {
     private overrides = new Map<
       ZodSchema<unknown, ZodTypeDef, unknown>,
       Arbitrary<unknown>
@@ -98,7 +96,9 @@ const _ZodFastCheck = (() =>
       withOverride.overrides.set(schema, arbitrary);
       return withOverride;
     }
-  })();
+  }
+}
+const _ZodFastCheck = zodFastCheck.ZodFastCheck;
 
 export type ZodFastCheck = InstanceType<typeof _ZodFastCheck>;
 
@@ -142,7 +142,7 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
     return fc.array(recurse(def.type), minLength, maxLength);
   },
   object(def: ZodObjectDef, recurse: ZodSchemaToArbitrary) {
-    const propertyArbitraries = Object.fromEntries(
+    const propertyArbitraries = objectFromEntries(
       Object.entries(def.shape()).map(([property, propSchema]) => [
         property,
         recurse(propSchema),
@@ -247,4 +247,15 @@ function filterByRefinements<T>(
 
     return isValid;
   });
+}
+
+function objectFromEntries<Value>(
+  entries: Array<[string, Value]>
+): Record<string, Value> {
+  const object: Record<string, Value> = {};
+  for (let i = 0; i < entries.length; i++) {
+    const [key, value] = entries[i];
+    object[key] = value;
+  }
+  return object;
 }

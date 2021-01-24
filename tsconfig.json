@@ -4,11 +4,12 @@
   ],
   "compilerOptions": {
     "outDir": "./dist",
-    "lib": ["ES2019"],
+    "lib": ["ES2015"],
     "target": "ES2015",
     "moduleResolution": "Node",
     "module": "CommonJS",
     "esModuleInterop": true,
-    "strict": true
+    "strict": true,
+    "declaration": true
   }
 }
