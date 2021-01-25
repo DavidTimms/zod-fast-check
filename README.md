@@ -42,11 +42,36 @@ test("User's full name always contains their first and last names", () =>
 
 The main interface is the `ZodFastCheck` class, which has the following methods:
 
-### `inputArbitrary`
+### inputArbitrary
 
-### `outputArbitrary`
+`inputArbitrary<Input>(zodSchema: ZodSchema<unknown, ZodTypeDef, Input>): Arbitrary<Input>`
 
-### `override`
+Creates an arbitrary which will generate values which are valid inputs to the schema. This should be used for testing functions which use the schema for validation.
+
+### outputArbitrary
+
+`outputArbitrary<Output>(zodSchema: ZodSchema<Output, ZodTypeDef, unknown>): Arbitrary<Output>`
+
+Creates an arbitrary which will generate values which are valid outputs of parsing the schema. This means any transformations have already been applied to the values. This should be used for testing functions which do not use the schema directly, but use data parsed by the schema.
+
+### override
+
+`override<Input>(schema: ZodSchema<unknown, ZodTypeDef, Input>, arbitrary: Arbitrary<Input>): ZodFastCheck`
+
+Returns a new `ZodFastCheck` instance which will use the provided arbitrary which generating inputs for the given schema. This includes if the schema is used as a component of a larger schema.
+
+For example, if we have a schema which validates that a string has a prefix, we can define an override to produce valid values.
+
+```ts
+const WithFoo = z.string().regex(/^foo/);
+
+const zodFastCheck = ZodFastCheck()
+  .override(WithFoo, fc.string().map(s => "foo" + s));
+
+const arbitrary = zodFastCheck.inputArbitrary(z.array(WithFoo));
+```
+
+Schema overrides are matched based on object identity, so you need to define the override using the exact schema object, rather than an equivalent schema.
 
 ## Supported Zod Schema Features
 
