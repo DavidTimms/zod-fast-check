@@ -58,7 +58,7 @@ Creates an arbitrary which will generate values which are valid outputs of parsi
 
 `override<Input>(schema: ZodSchema<unknown, ZodTypeDef, Input>, arbitrary: Arbitrary<Input>): ZodFastCheck`
 
-Returns a new `ZodFastCheck` instance which will use the provided arbitrary which generating inputs for the given schema. This includes if the schema is used as a component of a larger schema.
+Returns a new `ZodFastCheck` instance which will use the provided arbitrary when generating inputs for the given schema. This includes if the schema is used as a component of a larger schema.
 
 For example, if we have a schema which validates that a string has a prefix, we can define an override to produce valid values.
 

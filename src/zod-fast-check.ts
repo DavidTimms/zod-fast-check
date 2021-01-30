@@ -41,6 +41,9 @@ class _ZodFastCheck {
     return cloned;
   }
 
+  /**
+   * Creates an arbitrary which will generate valid inputs to the schema.
+   */
   inputArbitrary<Input>(
     zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
   ): Arbitrary<Input> {
@@ -66,6 +69,10 @@ class _ZodFastCheck {
     );
   }
 
+  /**
+   * Creates an arbitrary which will generate valid parsed outputs of
+   * the schema.
+   */
   outputArbitrary<Output, Input>(
     zodSchema: ZodSchema<Output, ZodTypeDef, Input>
   ): Arbitrary<Output> {
@@ -88,13 +95,14 @@ class _ZodFastCheck {
 
     return preEffectsArbitrary
       .map((value) => zodSchema.safeParse(value))
-      .filter(
-        (parsed): parsed is Extract<typeof parsed, { success: true }> =>
-          parsed.success
-      )
+      .filter(isUnionMember({ success: true }))
       .map((parsed) => parsed.data);
   }
 
+  /**
+   * Returns a new `ZodFastCheck` instance which will use the provided
+   * arbitrary when generating inputs for the given schema.
+   */
   override<Input>(
     schema: ZodSchema<unknown, ZodTypeDef, Input>,
     arbitrary: Arbitrary<Input>
@@ -214,6 +222,17 @@ const arbitraryBuilder: ArbitraryBuilder = {
   transformer(def: ZodTransformerDef, recurse: ZodSchemaToArbitrary) {
     return recurse(def.schema);
   },
+};
+
+/**
+ * Returns a type guard which filters one member from a union type.
+ */
+const isUnionMember = <T, Filter extends Partial<T>>(filter: Filter) => (
+  value: T
+): value is Extract<T, Filter> => {
+  return Object.entries(filter).every(
+    ([key, expected]) => value[key as keyof T] === expected
+  );
 };
 
 function objectFromEntries<Value>(
