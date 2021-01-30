@@ -1,6 +1,9 @@
 import fc from "fast-check";
 import * as z from "zod";
-import { ZodFastCheck } from "../src/zod-fast-check";
+import {
+  ZodFastCheck,
+  ZodFastCheckGenerationError,
+} from "../src/zod-fast-check";
 
 describe("Generate arbitaries for Zod schema input types", () => {
   enum Biscuits {
@@ -215,5 +218,31 @@ describe("Override the arbitrary for a particular schema type", () => {
         expect(Number(value) === parseInt(value, 10));
       })
     );
+  });
+});
+
+describe("Throwing an error if it is not able to generate a value", () => {
+  test("generating input values for an impossible refinement", () => {
+    const arbitrary = ZodFastCheck().inputArbitrary(z.string().uuid());
+
+    expect(() =>
+      fc.assert(
+        fc.property(arbitrary, (value) => {
+          return true;
+        })
+      )
+    ).toThrow(ZodFastCheckGenerationError);
+  });
+
+  test("generating output values for an impossible refinement", () => {
+    const arbitrary = ZodFastCheck().outputArbitrary(z.string().uuid());
+
+    expect(() =>
+      fc.assert(
+        fc.property(arbitrary, (value) => {
+          return true;
+        })
+      )
+    ).toThrow(ZodFastCheckGenerationError);
   });
 });

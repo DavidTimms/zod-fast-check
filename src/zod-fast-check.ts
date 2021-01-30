@@ -16,6 +16,8 @@ import { ZodPromiseDef } from "zod/lib/cjs/types/promise";
 import { ZodFunctionDef } from "zod/lib/cjs/types/function";
 import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 
+const MIN_SUCCESS_RATE = 0.01;
+
 type ZodSchemaToArbitrary = (
   schema: ZodSchema<unknown, ZodTypeDef, unknown>
 ) => Arbitrary<unknown>;
@@ -65,7 +67,10 @@ class _ZodFastCheck {
     }
 
     return preEffectsArbitrary.filter(
-      (value) => zodSchema.safeParse(value).success
+      throwIfSuccessRateBelow(
+        MIN_SUCCESS_RATE,
+        (value): value is typeof value => zodSchema.safeParse(value).success
+      )
     );
   }
 
@@ -95,7 +100,12 @@ class _ZodFastCheck {
 
     return preEffectsArbitrary
       .map((value) => zodSchema.safeParse(value))
-      .filter(isUnionMember({ success: true }))
+      .filter(
+        throwIfSuccessRateBelow(
+          MIN_SUCCESS_RATE,
+          isUnionMember({ success: true })
+        )
+      )
       .map((parsed) => parsed.data);
   }
 
@@ -224,6 +234,10 @@ const arbitraryBuilder: ArbitraryBuilder = {
   },
 };
 
+export class ZodFastCheckError extends Error {}
+
+export class ZodFastCheckGenerationError extends ZodFastCheckError {}
+
 /**
  * Returns a type guard which filters one member from a union type.
  */
@@ -234,6 +248,32 @@ const isUnionMember = <T, Filter extends Partial<T>>(filter: Filter) => (
     ([key, expected]) => value[key as keyof T] === expected
   );
 };
+
+function throwIfSuccessRateBelow<Value, Refined extends Value>(
+  rate: number,
+  predicate: (value: Value) => value is Refined
+): (value: Value) => value is Refined {
+  const MIN_RUNS = 1000;
+
+  let successful = 0;
+  let total = 0;
+
+  return (value: Value): value is Refined => {
+    const isSuccess = predicate(value);
+
+    total += 1;
+    if (isSuccess) successful += 1;
+
+    if (total > MIN_RUNS && successful / total < rate) {
+      throw new ZodFastCheckGenerationError(
+        "Unable to generate valid values for Zod schema. " +
+          "An override is must be provided."
+      );
+    }
+
+    return isSuccess;
+  };
+}
 
 function objectFromEntries<Value>(
   entries: Array<[string, Value]>
