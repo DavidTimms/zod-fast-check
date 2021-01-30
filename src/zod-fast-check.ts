@@ -47,45 +47,48 @@ namespace zodFastCheck {
     ): Arbitrary<Input> {
       const def: ZodDef = zodSchema._def as ZodDef;
 
-      const override = this.overrides.get(zodSchema) as Arbitrary<Input>;
-      if (override) return override;
+      let preEffectsArbitrary: Arbitrary<Input>;
 
-      const builder = inputArbitraryBuilder[def.t] as (
-        def: ZodDef,
-        recurse: ZodSchemaToArbitrary
-      ) => Arbitrary<unknown>;
+      const override = this.overrides.get(zodSchema);
 
-      const arbitrary = builder(
-        def,
-        this.inputArbitrary.bind(this)
-      ) as Arbitrary<Input>;
+      if (override) {
+        preEffectsArbitrary = override as Arbitrary<Input>;
+      } else {
+        const builder = inputArbitraryBuilder[def.t] as (
+          def: ZodDef,
+          recurse: ZodSchemaToArbitrary
+        ) => Arbitrary<Input>;
 
-      return filterByRefinements(arbitrary, def);
+        preEffectsArbitrary = builder(def, this.inputArbitrary.bind(this));
+      }
+
+      return preEffectsArbitrary.filter(
+        (value) => zodSchema.safeParse(value).success
+      );
     }
 
-    outputArbitrary<Output>(
-      zodSchema: ZodSchema<Output, ZodTypeDef, unknown>
+    outputArbitrary<Output, Input>(
+      zodSchema: ZodSchema<Output, ZodTypeDef, Input>
     ): Arbitrary<Output> {
       const def: ZodDef = zodSchema._def as ZodDef;
 
-      let override = this.overrides.get(zodSchema);
+      let preEffectsArbitrary: Arbitrary<Input>;
+
+      const override = this.overrides.get(zodSchema);
 
       if (override) {
-        if (def.t === ZodTypes.transformer) {
-          override = override.map(def.transformer);
-        }
+        preEffectsArbitrary = override as Arbitrary<Input>;
+      } else {
+        const builder = inputArbitraryBuilder[def.t] as (
+          def: ZodDef,
+          recurse: ZodSchemaToArbitrary
+        ) => Arbitrary<Input>;
 
-        return override as Arbitrary<Output>;
+        preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
       }
 
-      const builder = outputArbitraryBuilder[def.t] as (
-        def: ZodDef,
-        recurse: ZodSchemaToArbitrary
-      ) => Arbitrary<unknown>;
-
-      const arbitrary = (this.overrides.get(zodSchema) ??
-        builder(def, this.outputArbitrary.bind(this))) as Arbitrary<Output>;
-      return filterByRefinements(arbitrary, def);
+      throw Error("Not yet implemented");
+      // return filterByRefinements(arbitrary, def);
     }
 
     override<Input>(
@@ -211,14 +214,17 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
 const inputArbitraryBuilder: ArbitraryBuilder = {
   ...baseArbitraryBuilder,
   transformer(def: ZodTransformerDef, recurse: ZodSchemaToArbitrary) {
-    return recurse(def.input);
+    return recurse(def.schema);
   },
 };
 
 const outputArbitraryBuilder: ArbitraryBuilder = {
   ...baseArbitraryBuilder,
   transformer(def: ZodTransformerDef, recurse: ZodSchemaToArbitrary) {
-    return recurse(def.input).map(def.transformer);
+    return recurse(def.schema);
+    // TODO cleanup
+    throw Error("Not implemented");
+    // return recurse(def.input).map(def.transformer);
   },
 };
 
@@ -226,27 +232,29 @@ function filterByRefinements<T>(
   arbitrary: Arbitrary<T>,
   def: ZodDef
 ): Arbitrary<T> {
-  const checks = def.checks;
-  if (!checks || checks.length === 0) {
-    return arbitrary;
-  }
+  return arbitrary;
 
-  return arbitrary.filter((value) => {
-    let isValid = true;
+  // const checks = def.checks;
+  // if (!checks || checks.length === 0) {
+  //   return arbitrary;
+  // }
 
-    const context: RefinementCtx = {
-      addIssue: () => {
-        isValid = false;
-      },
-      path: [],
-    };
+  // return arbitrary.filter((value) => {
+  //   let isValid = true;
 
-    for (let i = 0; isValid && i < checks.length; i++) {
-      checks[i].check(value, context);
-    }
+  //   const context: RefinementCtx = {
+  //     addIssue: () => {
+  //       isValid = false;
+  //     },
+  //     path: [],
+  //   };
 
-    return isValid;
-  });
+  //   for (let i = 0; isValid && i < checks.length; i++) {
+  //     checks[i].check(value, context);
+  //   }
+
+  //   return isValid;
+  // });
 }
 
 function objectFromEntries<Value>(

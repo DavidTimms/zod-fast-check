@@ -88,10 +88,8 @@ describe("Generate arbitaries for Zod schema input types", () => {
     // of the correct length which is currently used.
     // "string with fixed length": z.string().length(24),
 
-    "number to string transformer": z.number().transform(z.string(), String),
-    "deeply nested transformer": z.array(
-      z.boolean().transform(z.number(), Number)
-    ),
+    "number to string transformer": z.number().transform(String),
+    "deeply nested transformer": z.array(z.boolean().transform(Number)),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
@@ -109,7 +107,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
 describe("Generate arbitaries for Zod schema output types", () => {
   test("number to string transformer", () => {
     const targetSchema = z.string().refine((s) => !isNaN(+s));
-    const schema = z.number().transform(targetSchema, String);
+    const schema = z.number().transform(String);
 
     const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
@@ -125,8 +123,8 @@ describe("Generate arbitaries for Zod schema output types", () => {
     // to strings with exclamation marks then concatenates them.
     const targetSchema = z.string().regex(/(true\!|false\!)*/);
     const schema = z
-      .array(z.boolean().transform(z.string(), (bool) => `${bool}!`))
-      .transform(targetSchema, (array) => array.join(""));
+      .array(z.boolean().transform((bool) => `${bool}!`))
+      .transform((array) => array.join(""));
 
     const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
@@ -151,7 +149,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .number()
       .int()
       .refine((x) => x < MAX && x > MIN)
-      .transform(targetSchema, (x) => x * 2);
+      .transform((x) => x * 2);
 
     const arbitrary = ZodFastCheck().outputArbitrary(schema);
 
@@ -192,7 +190,7 @@ describe("Override the arbitrary for a particular schema type", () => {
     );
   });
 
-  const IntAsString = z.number().int().transform(z.string(), String);
+  const IntAsString = z.number().int().transform(String);
 
   test("using custom integer arbitrary for IntAsString input", () => {
     const arbitrary = ZodFastCheck()
