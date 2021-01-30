@@ -106,6 +106,6 @@ Schema overrides are matched based on object identity, so you need to define the
 
 ### Refinements
 
-Refinements are supported, but they are produced by filtering the original arbitrary by the refinement function. This means that for refinements which have a very low probability of matching a random input, fast-check will take a very long, potentially infinite, amount of time to find a valid value. This is most common when using refinements to check that a string matches a particular format.
+Refinements are supported, but they are produced by filtering the original arbitrary by the refinement function. This means that for refinements which have a very low probability of matching a random input, it will not be able to generate valid values. This is most common when using refinements to check that a string matches a particular format. If this occurs, it will throw a `ZodFastCheckGenerationError`.
 
 In cases like this, it is recommended to define an override for the problematic subschema.
