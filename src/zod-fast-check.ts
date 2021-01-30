@@ -22,93 +22,90 @@ type ZodSchemaToArbitrary = (
 
 type ArbitraryBuilder = {
   [TypeName in ZodTypes]: (
-    def: ZodDef & { t: TypeName },
+    def: Extract<ZodDef, { t: TypeName }>,
     recurse: ZodSchemaToArbitrary
   ) => Arbitrary<unknown>;
 };
 
-namespace zodFastCheck {
-  export class ZodFastCheck {
-    private overrides = new Map<
-      ZodSchema<unknown, ZodTypeDef, unknown>,
-      Arbitrary<unknown>
-    >();
+class _ZodFastCheck {
+  private overrides = new Map<
+    ZodSchema<unknown, ZodTypeDef, unknown>,
+    Arbitrary<unknown>
+  >();
 
-    private clone(): ZodFastCheck {
-      const cloned = new ZodFastCheck();
-      this.overrides.forEach((arbitrary, schema) => {
-        cloned.overrides.set(schema, arbitrary);
-      });
-      return cloned;
+  private clone(): ZodFastCheck {
+    const cloned = new _ZodFastCheck();
+    this.overrides.forEach((arbitrary, schema) => {
+      cloned.overrides.set(schema, arbitrary);
+    });
+    return cloned;
+  }
+
+  inputArbitrary<Input>(
+    zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
+  ): Arbitrary<Input> {
+    const def: ZodDef = zodSchema._def as ZodDef;
+
+    let preEffectsArbitrary: Arbitrary<Input>;
+
+    const override = this.overrides.get(zodSchema);
+
+    if (override) {
+      preEffectsArbitrary = override as Arbitrary<Input>;
+    } else {
+      const builder = arbitraryBuilder[def.t] as (
+        def: ZodDef,
+        recurse: ZodSchemaToArbitrary
+      ) => Arbitrary<Input>;
+
+      preEffectsArbitrary = builder(def, this.inputArbitrary.bind(this));
     }
 
-    inputArbitrary<Input>(
-      zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
-    ): Arbitrary<Input> {
-      const def: ZodDef = zodSchema._def as ZodDef;
+    return preEffectsArbitrary.filter(
+      (value) => zodSchema.safeParse(value).success
+    );
+  }
 
-      let preEffectsArbitrary: Arbitrary<Input>;
+  outputArbitrary<Output, Input>(
+    zodSchema: ZodSchema<Output, ZodTypeDef, Input>
+  ): Arbitrary<Output> {
+    const def: ZodDef = zodSchema._def as ZodDef;
 
-      const override = this.overrides.get(zodSchema);
+    let preEffectsArbitrary: Arbitrary<Input>;
 
-      if (override) {
-        preEffectsArbitrary = override as Arbitrary<Input>;
-      } else {
-        const builder = arbitraryBuilder[def.t] as (
-          def: ZodDef,
-          recurse: ZodSchemaToArbitrary
-        ) => Arbitrary<Input>;
+    const override = this.overrides.get(zodSchema);
 
-        preEffectsArbitrary = builder(def, this.inputArbitrary.bind(this));
-      }
+    if (override) {
+      preEffectsArbitrary = override as Arbitrary<Input>;
+    } else {
+      const builder = arbitraryBuilder[def.t] as (
+        def: ZodDef,
+        recurse: ZodSchemaToArbitrary
+      ) => Arbitrary<Input>;
 
-      return preEffectsArbitrary.filter(
-        (value) => zodSchema.safeParse(value).success
-      );
+      preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
     }
 
-    outputArbitrary<Output, Input>(
-      zodSchema: ZodSchema<Output, ZodTypeDef, Input>
-    ): Arbitrary<Output> {
-      const def: ZodDef = zodSchema._def as ZodDef;
+    return preEffectsArbitrary
+      .map((value) => zodSchema.safeParse(value))
+      .filter(
+        (parsed): parsed is Extract<typeof parsed, { success: true }> =>
+          parsed.success
+      )
+      .map((parsed) => parsed.data);
+  }
 
-      let preEffectsArbitrary: Arbitrary<Input>;
-
-      const override = this.overrides.get(zodSchema);
-
-      if (override) {
-        preEffectsArbitrary = override as Arbitrary<Input>;
-      } else {
-        const builder = arbitraryBuilder[def.t] as (
-          def: ZodDef,
-          recurse: ZodSchemaToArbitrary
-        ) => Arbitrary<Input>;
-
-        preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
-      }
-
-      return preEffectsArbitrary
-        .map((value) => zodSchema.safeParse(value))
-        .filter(
-          (parsed): parsed is Extract<typeof parsed, { success: true }> =>
-            parsed.success
-        )
-        .map((parsed) => parsed.data);
-    }
-
-    override<Input>(
-      schema: ZodSchema<unknown, ZodTypeDef, Input>,
-      arbitrary: Arbitrary<Input>
-    ): ZodFastCheck {
-      const withOverride = this.clone();
-      withOverride.overrides.set(schema, arbitrary);
-      return withOverride;
-    }
+  override<Input>(
+    schema: ZodSchema<unknown, ZodTypeDef, Input>,
+    arbitrary: Arbitrary<Input>
+  ): ZodFastCheck {
+    const withOverride = this.clone();
+    withOverride.overrides.set(schema, arbitrary);
+    return withOverride;
   }
 }
-const _ZodFastCheck = zodFastCheck.ZodFastCheck;
 
-export type ZodFastCheck = InstanceType<typeof _ZodFastCheck>;
+export type ZodFastCheck = _ZodFastCheck;
 
 // Wrapper function to allow instantiation without "new"
 export function ZodFastCheck(): ZodFastCheck {
