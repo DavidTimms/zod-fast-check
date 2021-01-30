@@ -1,5 +1,5 @@
 import fc, { Arbitrary } from "fast-check";
-import { RefinementCtx, ZodDef, ZodSchema, ZodTypeDef, ZodTypes } from "zod";
+import { ZodDef, ZodSchema, ZodTypeDef, ZodTypes } from "zod";
 import { ZodArrayDef } from "zod/lib/cjs/types/array";
 import { ZodEnumDef } from "zod/lib/cjs/types/enum";
 import { ZodLiteralDef } from "zod/lib/cjs/types/literal";
@@ -11,10 +11,10 @@ import { ZodOptionalDef } from "zod/lib/cjs/types/optional";
 import { ZodRecordDef } from "zod/lib/cjs/types/record";
 import { ZodTupleDef } from "zod/lib/cjs/types/tuple";
 import { ZodUnionDef } from "zod/lib/cjs/types/union";
-import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 import { ZodTransformerDef } from "zod/lib/cjs/types/transformer";
 import { ZodPromiseDef } from "zod/lib/cjs/types/promise";
 import { ZodFunctionDef } from "zod/lib/cjs/types/function";
+import { util as zodUtils } from "zod/lib/cjs/helpers/util";
 
 type ZodSchemaToArbitrary = (
   schema: ZodSchema<unknown, ZodTypeDef, unknown>
@@ -54,7 +54,7 @@ namespace zodFastCheck {
       if (override) {
         preEffectsArbitrary = override as Arbitrary<Input>;
       } else {
-        const builder = inputArbitraryBuilder[def.t] as (
+        const builder = arbitraryBuilder[def.t] as (
           def: ZodDef,
           recurse: ZodSchemaToArbitrary
         ) => Arbitrary<Input>;
@@ -79,7 +79,7 @@ namespace zodFastCheck {
       if (override) {
         preEffectsArbitrary = override as Arbitrary<Input>;
       } else {
-        const builder = inputArbitraryBuilder[def.t] as (
+        const builder = arbitraryBuilder[def.t] as (
           def: ZodDef,
           recurse: ZodSchemaToArbitrary
         ) => Arbitrary<Input>;
@@ -87,8 +87,13 @@ namespace zodFastCheck {
         preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
       }
 
-      throw Error("Not yet implemented");
-      // return filterByRefinements(arbitrary, def);
+      return preEffectsArbitrary
+        .map((value) => zodSchema.safeParse(value))
+        .filter(
+          (parsed): parsed is Extract<typeof parsed, { success: true }> =>
+            parsed.success
+        )
+        .map((parsed) => parsed.data);
     }
 
     override<Input>(
@@ -114,7 +119,7 @@ export function ZodFastCheck(): ZodFastCheck {
 // "instanceof" works as expected.
 ZodFastCheck.prototype = _ZodFastCheck.prototype;
 
-const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
+const arbitraryBuilder: ArbitraryBuilder = {
   string() {
     const maxLength = 512;
     return fc.unicodeString(maxLength);
@@ -209,53 +214,10 @@ const baseArbitraryBuilder: Omit<ArbitraryBuilder, "transformer"> = {
     const nil = null;
     return fc.option(recurse(def.innerType), { nil, freq: 2 });
   },
-};
-
-const inputArbitraryBuilder: ArbitraryBuilder = {
-  ...baseArbitraryBuilder,
   transformer(def: ZodTransformerDef, recurse: ZodSchemaToArbitrary) {
     return recurse(def.schema);
   },
 };
-
-const outputArbitraryBuilder: ArbitraryBuilder = {
-  ...baseArbitraryBuilder,
-  transformer(def: ZodTransformerDef, recurse: ZodSchemaToArbitrary) {
-    return recurse(def.schema);
-    // TODO cleanup
-    throw Error("Not implemented");
-    // return recurse(def.input).map(def.transformer);
-  },
-};
-
-function filterByRefinements<T>(
-  arbitrary: Arbitrary<T>,
-  def: ZodDef
-): Arbitrary<T> {
-  return arbitrary;
-
-  // const checks = def.checks;
-  // if (!checks || checks.length === 0) {
-  //   return arbitrary;
-  // }
-
-  // return arbitrary.filter((value) => {
-  //   let isValid = true;
-
-  //   const context: RefinementCtx = {
-  //     addIssue: () => {
-  //       isValid = false;
-  //     },
-  //     path: [],
-  //   };
-
-  //   for (let i = 0; isValid && i < checks.length; i++) {
-  //     checks[i].check(value, context);
-  //   }
-
-  //   return isValid;
-  // });
-}
 
 function objectFromEntries<Value>(
   entries: Array<[string, Value]>
