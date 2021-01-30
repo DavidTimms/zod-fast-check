@@ -2,7 +2,7 @@
 
 A small library to automatically derive [fast-check](https://github.com/dubzzz/fast-check) [arbitraries](https://github.com/dubzzz/fast-check/blob/master/documentation/Arbitraries.md) from schemas defined using the validation library [Zod](https://github.com/colinhacks/zod). These enables easy and thorough property-based testing.
 
-The tool is designed for Zod 2, which brings many new features over Zod 1, but as of writing is still in beta.
+The tool is designed for Zod 3, which brings many new features over Zod 1, but as of writing is still in beta.
 
 ## Usage
 
