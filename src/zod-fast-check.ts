@@ -136,8 +136,7 @@ ZodFastCheck.prototype = _ZodFastCheck.prototype;
 
 const arbitraryBuilder: ArbitraryBuilder = {
   string() {
-    const maxLength = 512;
-    return fc.unicodeString(maxLength);
+    return fc.string();
   },
   number() {
     const min = -(2 ** 64);
@@ -161,7 +160,7 @@ const arbitraryBuilder: ArbitraryBuilder = {
   },
   array(def: ZodArrayDef, recurse: ZodSchemaToArbitrary) {
     const minLength = def.nonempty ? 1 : 0;
-    const maxLength = 16;
+    const maxLength = 2 * minLength + 10;
     return fc.array(recurse(def.type), minLength, maxLength);
   },
   object(def: ZodObjectDef, recurse: ZodSchemaToArbitrary) {

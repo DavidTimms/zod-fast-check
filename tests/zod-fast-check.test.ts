@@ -82,14 +82,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
     nonpositive: z.number().nonpositive(),
     nonnegative: z.number().nonnegative(),
     "number with custom refinement": z.number().refine((x) => x % 3 === 0),
-
-    "string with minimum length": z.string().min(24),
     "string with maximum length": z.string().max(24),
-
-    // This test is disabled because it is incredibly slow.
-    // This is due to the brute force approach to generating strings
-    // of the correct length which is currently used.
-    // "string with fixed length": z.string().length(24),
 
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
