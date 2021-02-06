@@ -66,6 +66,12 @@ class _ZodFastCheck {
       preEffectsArbitrary = builder(def, this.inputArbitrary.bind(this));
     }
 
+    // Applying the effects quite slow, so we can skip that if
+    // there are no effects.
+    if ((def.effects ?? []).length === 0) {
+      return preEffectsArbitrary as Arbitrary<any>;
+    }
+
     return preEffectsArbitrary.filter(
       throwIfSuccessRateBelow(
         MIN_SUCCESS_RATE,
@@ -96,6 +102,12 @@ class _ZodFastCheck {
       ) => Arbitrary<Input>;
 
       preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
+    }
+
+    // Applying the effects quite slow, so we can skip that if
+    // there are no effects.
+    if ((def.effects ?? []).length === 0) {
+      return preEffectsArbitrary as Arbitrary<any>;
     }
 
     return preEffectsArbitrary
