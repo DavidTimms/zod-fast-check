@@ -90,7 +90,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
 
   for (const [name, schema] of Object.entries(schemas)) {
     test(name, () => {
-      const arbitrary = ZodFastCheck().inputArbitrary(schema);
+      const arbitrary = ZodFastCheck().inputOf(schema);
       return fc.assert(
         fc.asyncProperty(arbitrary, async (value) => {
           await schema.parse(value);
@@ -105,7 +105,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
     const targetSchema = z.string().refine((s) => !isNaN(+s));
     const schema = z.number().transform(String);
 
-    const arbitrary = ZodFastCheck().outputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputOf(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -122,7 +122,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .array(z.boolean().transform((bool) => `${bool}!`))
       .transform((array) => array.join(""));
 
-    const arbitrary = ZodFastCheck().outputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputOf(schema);
 
     return fc.assert(
       fc.asyncProperty(arbitrary, async (value) => {
@@ -147,7 +147,7 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .refine((x) => x < MAX && x > MIN)
       .transform((x) => x * 2);
 
-    const arbitrary = ZodFastCheck().outputArbitrary(schema);
+    const arbitrary = ZodFastCheck().outputOf(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -161,9 +161,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   const UUID = z.string().uuid();
 
   test("using custom UUID arbitrary", () => {
-    const arbitrary = ZodFastCheck()
-      .override(UUID, fc.uuid())
-      .inputArbitrary(UUID);
+    const arbitrary = ZodFastCheck().override(UUID, fc.uuid()).inputOf(UUID);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -175,9 +173,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   test("using custom UUID arbitrary in nested schema", () => {
     const schema = z.object({ ids: z.array(UUID) });
 
-    const arbitrary = ZodFastCheck()
-      .override(UUID, fc.uuid())
-      .inputArbitrary(schema);
+    const arbitrary = ZodFastCheck().override(UUID, fc.uuid()).inputOf(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -191,7 +187,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   test("using custom integer arbitrary for IntAsString input", () => {
     const arbitrary = ZodFastCheck()
       .override(IntAsString, fc.integer())
-      .inputArbitrary(IntAsString);
+      .inputOf(IntAsString);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -203,7 +199,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   test("using custom integer arbitrary for IntAsString output", () => {
     const arbitrary = ZodFastCheck()
       .override(IntAsString, fc.integer())
-      .outputArbitrary(IntAsString);
+      .outputOf(IntAsString);
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
@@ -216,7 +212,7 @@ describe("Override the arbitrary for a particular schema type", () => {
 
 describe("Throwing an error if it is not able to generate a value", () => {
   test("generating input values for an impossible refinement", () => {
-    const arbitrary = ZodFastCheck().inputArbitrary(z.string().uuid());
+    const arbitrary = ZodFastCheck().inputOf(z.string().uuid());
 
     expect(() =>
       fc.assert(
@@ -228,7 +224,7 @@ describe("Throwing an error if it is not able to generate a value", () => {
   });
 
   test("generating output values for an impossible refinement", () => {
-    const arbitrary = ZodFastCheck().outputArbitrary(z.string().uuid());
+    const arbitrary = ZodFastCheck().outputOf(z.string().uuid());
 
     expect(() =>
       fc.assert(

@@ -26,7 +26,7 @@ function fullName(user: unknown): string {
 }
 
 // Create an arbitrary which generates valid inputs for the schema
-const userArbitrary = ZodFastCheck().inputArbitrary(User);
+const userArbitrary = ZodFastCheck().inputOf(User);
 
 // Use the arbitrary in a property-based test
 test("User's full name always contains their first and last names", () =>
@@ -42,15 +42,15 @@ test("User's full name always contains their first and last names", () =>
 
 The main interface is the `ZodFastCheck` class, which has the following methods:
 
-### inputArbitrary
+### inputOf
 
-`inputArbitrary<Input>(zodSchema: ZodSchema<unknown, ZodTypeDef, Input>): Arbitrary<Input>`
+`inputOf<Input>(zodSchema: ZodSchema<unknown, ZodTypeDef, Input>): Arbitrary<Input>`
 
 Creates an arbitrary which will generate values which are valid inputs to the schema. This should be used for testing functions which use the schema for validation.
 
-### outputArbitrary
+### outputOf
 
-`outputArbitrary<Output>(zodSchema: ZodSchema<Output, ZodTypeDef, unknown>): Arbitrary<Output>`
+`outputOf<Output>(zodSchema: ZodSchema<Output, ZodTypeDef, unknown>): Arbitrary<Output>`
 
 Creates an arbitrary which will generate values which are valid outputs of parsing the schema. This means any transformations have already been applied to the values. This should be used for testing functions which do not use the schema directly, but use data parsed by the schema.
 
@@ -68,7 +68,7 @@ const WithFoo = z.string().regex(/^foo/);
 const zodFastCheck = ZodFastCheck()
   .override(WithFoo, fc.string().map(s => "foo" + s));
 
-const arbitrary = zodFastCheck.inputArbitrary(z.array(WithFoo));
+const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ```
 
 Schema overrides are matched based on object identity, so you need to define the override using the exact schema object, rather than an equivalent schema.

@@ -46,7 +46,7 @@ class _ZodFastCheck {
   /**
    * Creates an arbitrary which will generate valid inputs to the schema.
    */
-  inputArbitrary<Input>(
+  inputOf<Input>(
     zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
   ): Arbitrary<Input> {
     const def: ZodDef = zodSchema._def as ZodDef;
@@ -63,7 +63,7 @@ class _ZodFastCheck {
         recurse: ZodSchemaToArbitrary
       ) => Arbitrary<Input>;
 
-      preEffectsArbitrary = builder(def, this.inputArbitrary.bind(this));
+      preEffectsArbitrary = builder(def, this.inputOf.bind(this));
     }
 
     // Applying the effects quite slow, so we can skip that if
@@ -84,7 +84,7 @@ class _ZodFastCheck {
    * Creates an arbitrary which will generate valid parsed outputs of
    * the schema.
    */
-  outputArbitrary<Output, Input>(
+  outputOf<Output, Input>(
     zodSchema: ZodSchema<Output, ZodTypeDef, Input>
   ): Arbitrary<Output> {
     const def: ZodDef = zodSchema._def as ZodDef;
@@ -101,10 +101,10 @@ class _ZodFastCheck {
         recurse: ZodSchemaToArbitrary
       ) => Arbitrary<Input>;
 
-      preEffectsArbitrary = builder(def, this.outputArbitrary.bind(this));
+      preEffectsArbitrary = builder(def, this.outputOf.bind(this));
     }
 
-    // Applying the effects quite slow, so we can skip that if
+    // Applying the effects is quite slow, so we can skip that if
     // there are no effects.
     if ((def.effects ?? []).length === 0) {
       return preEffectsArbitrary as Arbitrary<any>;
