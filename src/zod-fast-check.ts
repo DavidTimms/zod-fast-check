@@ -24,21 +24,41 @@ import {
   ZodDefaultDef,
   ZodStringDef,
   ZodFirstPartySchemaTypes,
+  ZodNumber,
+  ZodArray,
+  ZodObject,
+  ZodRawShape,
+  ZodUnion,
+  ZodTuple,
+  ZodRecord,
+  ZodMap,
+  ZodSet,
+  ZodFunction,
+  ZodLiteral,
+  ZodEnum,
+  ZodNativeEnum,
+  ZodPromise,
+  ZodOptional,
+  ZodNullable,
+  ZodDefault,
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
 
-type ZodSchemaToArbitrary = (
-  schema: ZodSchema<unknown, ZodTypeDef, unknown>
-) => Arbitrary<unknown>;
+// TODO add GenericArbitraryBuilder
+
+type ArbitraryBuilder<Schema extends ZodTypeAny = ZodTypeAny> = (
+  schema: Schema,
+  path: string,
+  recurse: ArbitraryBuilder
+) => Arbitrary<Schema["_input"]>;
 
 type ZodFirstPartyTypeKind = ZodFirstPartySchemaTypes["_def"]["typeName"];
 
 type ArbitraryBuilders = {
-  [TypeName in ZodFirstPartyTypeKind]: (
-    def: ExtractFirstPartySchemaType<TypeName>["_def"],
-    recurse: ZodSchemaToArbitrary
-  ) => Arbitrary<ExtractFirstPartySchemaType<TypeName>["_input"]>;
+  [TypeName in ZodFirstPartyTypeKind]: ArbitraryBuilder<
+    ExtractFirstPartySchemaType<TypeName>
+  >;
 };
 
 type ExtractFirstPartySchemaType<
@@ -79,11 +99,16 @@ class _ZodFastCheck {
    * Creates an arbitrary which will generate valid inputs to the schema.
    */
   inputOf<Input>(
-    zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
+    schema: ZodSchema<unknown, ZodTypeDef, Input>
   ): Arbitrary<Input> {
-    let def = zodSchema._def;
+    return this.inputWithPath(schema, "");
+  }
 
-    const override = this.overrides.get(zodSchema);
+  private inputWithPath<Input>(
+    schema: ZodSchema<unknown, ZodTypeDef, Input>,
+    path: string
+  ): Arbitrary<Input> {
+    const override = this.overrides.get(schema);
 
     if (override) {
       return override as Arbitrary<Input>;
@@ -91,14 +116,19 @@ class _ZodFastCheck {
       // This is an appalling hack which is required to support
       // the ZodNonEmptyArray type in Zod 3.5 and 3.6. The type was
       // removed in Zod 3.7.
-      if (zodSchema.constructor.name === "ZodNonEmptyArray") {
-        def = {
+      if (schema.constructor.name === "ZodNonEmptyArray") {
+        const def = schema._def as ZodArrayDef;
+        schema = new ZodArray({
           ...def,
-          minLength: (def as ZodArrayDef).minLength ?? { value: 1 },
-        };
+          minLength: def.minLength ?? { value: 1 },
+        }) as any;
       }
 
-      return findArbitraryBuilder(zodSchema)(def, this.inputOf.bind(this));
+      return findArbitraryBuilder(schema)(
+        schema,
+        path,
+        this.inputWithPath.bind(this)
+      );
     }
   }
 
@@ -107,25 +137,26 @@ class _ZodFastCheck {
    * the schema.
    */
   outputOf<Output, Input>(
-    zodSchema: ZodSchema<Output, ZodTypeDef, Input>
+    schema: ZodSchema<Output, ZodTypeDef, Input>
   ): Arbitrary<Output> {
-    let inputArbitrary = this.inputOf(zodSchema);
+    let inputArbitrary = this.inputOf(schema);
 
     // For scalar types, the input is always the same as the output,
     // so we can just use the input arbitrary unchanged.
     if (
-      isFirstPartyType(zodSchema) &&
-      SCALAR_TYPES.has(`${zodSchema._def.typeName}` as const)
+      isFirstPartyType(schema) &&
+      SCALAR_TYPES.has(`${schema._def.typeName}` as const)
     ) {
       return inputArbitrary as Arbitrary<any>;
     }
 
     return inputArbitrary
-      .map((value) => zodSchema.safeParse(value))
+      .map((value) => schema.safeParse(value))
       .filter(
         throwIfSuccessRateBelow(
           MIN_SUCCESS_RATE,
-          isUnionMember({ success: true })
+          isUnionMember({ success: true }),
+          ""
         )
       )
       .map((parsed) => parsed.data);
@@ -168,24 +199,21 @@ function isFirstPartyType(
 
 function findArbitraryBuilder<Input>(
   zodSchema: ZodSchema<unknown, ZodTypeDef, Input>
-): (def: ZodTypeDef, recurse: ZodSchemaToArbitrary) => Arbitrary<Input> {
+): ArbitraryBuilder<typeof zodSchema> {
   if (isFirstPartyType(zodSchema)) {
-    return arbitraryBuilders[zodSchema._def.typeName] as (
-      def: ZodTypeDef,
-      recurse: ZodSchemaToArbitrary
-    ) => Arbitrary<any>;
+    return arbitraryBuilders[zodSchema._def.typeName] as ArbitraryBuilder<any>;
   }
 
   throw Error(`Unsupported schema type: ${zodSchema.constructor.name}.`);
 }
 
 const arbitraryBuilders: ArbitraryBuilders = {
-  ZodString(def: ZodStringDef) {
+  ZodString(schema: ZodString, path: string) {
     let minLength = 0;
     let maxLength: number | null = null;
     let hasRegexCheck = false;
 
-    for (const check of def.checks) {
+    for (const check of schema._def.checks) {
       switch (check.kind) {
         case "min":
           minLength = Math.max(minLength, check.value);
@@ -210,17 +238,17 @@ const arbitraryBuilders: ArbitraryBuilders = {
     const unfiltered = fc.string(minLength, maxLength);
 
     if (hasRegexCheck) {
-      return filterArbitraryBySchema(unfiltered, new ZodString(def));
+      return filterArbitraryBySchema(unfiltered, schema, path);
     } else {
       return unfiltered;
     }
   },
-  ZodNumber(def: ZodNumberDef) {
+  ZodNumber(schema: ZodNumber) {
     let min = -(2 ** 64);
     let max = 2 ** 64;
     let isInt = false;
 
-    for (const check of def.checks) {
+    for (const check of schema._def.checks) {
       switch (check.kind) {
         case "min":
           min = Math.max(
@@ -259,60 +287,101 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodNull() {
     return fc.constant(null);
   },
-  ZodArray(def: ZodArrayDef, recurse: ZodSchemaToArbitrary) {
-    const minLength = def.minLength?.value ?? 0;
-    const maxLength = Math.min(def.maxLength?.value ?? 10, 10);
-    return fc.array(recurse(def.type), minLength, maxLength);
+  ZodArray(
+    schema: ZodArray<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    const minLength = schema._def.minLength?.value ?? 0;
+    const maxLength = Math.min(schema._def.maxLength?.value ?? 10, 10);
+    return fc.array(
+      recurse(schema._def.type, path + "[*]", recurse),
+      minLength,
+      maxLength
+    );
   },
-  ZodObject(def: ZodObjectDef, recurse: ZodSchemaToArbitrary) {
+  ZodObject(
+    schema: ZodObject<ZodRawShape>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
     const propertyArbitraries = objectFromEntries(
-      Object.entries(def.shape()).map(([property, propSchema]) => [
+      Object.entries(schema._def.shape()).map(([property, propSchema]) => [
         property,
-        recurse(propSchema),
+        recurse(propSchema, path + "." + property, recurse),
       ])
     );
     return fc.record(propertyArbitraries);
   },
-  ZodUnion(def: ZodUnionDef, recurse: ZodSchemaToArbitrary) {
-    return fc.oneof(...def.options.map(recurse));
+  ZodUnion(
+    schema: ZodUnion<[ZodTypeAny, ...ZodTypeAny[]]>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    return fc.oneof(
+      ...schema._def.options.map((option) => recurse(option, path, recurse))
+    );
   },
   ZodIntersection() {
     throw Error("Intersection schemas are not yet supported.");
   },
-  ZodTuple(def: ZodTupleDef, recurse: ZodSchemaToArbitrary) {
-    return fc.genericTuple(def.items.map(recurse)) as Arbitrary<
-      [any, ...any[]]
-    >;
+  ZodTuple(schema: ZodTuple, path: string, recurse: ArbitraryBuilder) {
+    return fc.genericTuple(
+      schema._def.items.map((item, index) =>
+        recurse(item, `${path}[${index}]`, recurse)
+      )
+    ) as Arbitrary<[any, ...any[]]>;
   },
-  ZodRecord(def: ZodRecordDef, recurse: ZodSchemaToArbitrary) {
-    return fc.dictionary(fc.string(), recurse(def.valueType));
+  ZodRecord(schema: ZodRecord, path: string, recurse: ArbitraryBuilder) {
+    return fc.dictionary(
+      fc.string(),
+      recurse(schema._def.valueType, path + "[*]", recurse)
+    );
   },
-  ZodMap(def: ZodMapDef, recurse: ZodSchemaToArbitrary) {
-    const key = recurse(def.keyType);
-    const value = recurse(def.valueType);
+  ZodMap(schema: ZodMap, path: string, recurse: ArbitraryBuilder) {
+    const key = recurse(schema._def.keyType, path + ".(key)", recurse);
+    const value = recurse(schema._def.valueType, path + ".(value)", recurse);
     return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
-  ZodSet(def: ZodSetDef, recurse: ZodSchemaToArbitrary) {
-    return fc.set(recurse(def.valueType)).map((members) => new Set(members));
+  ZodSet(schema: ZodSet, path: string, recurse: ArbitraryBuilder) {
+    return fc
+      .set(recurse(schema._def.valueType, path + ".(value)", recurse))
+      .map((members) => new Set(members));
   },
-  ZodFunction(def: ZodFunctionDef, recurse: ZodSchemaToArbitrary) {
-    return recurse(def.returns).map((returnValue) => () => returnValue);
+  ZodFunction(
+    schema: ZodFunction<ZodTuple, ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    return recurse(
+      schema._def.returns,
+      path + ".(return type)",
+      recurse
+    ).map((returnValue) => () => returnValue);
   },
   ZodLazy() {
     throw Error("Lazy schemas are not yet supported.");
   },
-  ZodLiteral(def: ZodLiteralDef) {
-    return fc.constant(def.value);
+  ZodLiteral(schema: ZodLiteral<unknown>) {
+    return fc.constant(schema._def.value);
   },
-  ZodEnum(def: ZodEnumDef) {
-    return fc.oneof(...def.values.map(fc.constant));
+  ZodEnum(schema: ZodEnum<[string, ...string[]]>) {
+    return fc.oneof(...schema._def.values.map(fc.constant));
   },
-  ZodNativeEnum(def: ZodNativeEnumDef) {
-    const enumValues = getValidEnumValues(def.values);
+  ZodNativeEnum(schema: ZodNativeEnum<any>) {
+    const enumValues = getValidEnumValues(schema._def.values);
     return fc.oneof(...enumValues.map(fc.constant));
   },
-  ZodPromise(def: ZodPromiseDef, recurse: ZodSchemaToArbitrary) {
-    return recurse(def.type).map((value) => Promise.resolve(value));
+  ZodPromise(
+    schema: ZodPromise<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    return recurse(
+      schema._def.type,
+      path + ".(resolved type)",
+      recurse
+    ).map((value) => Promise.resolve(value));
   },
   ZodAny() {
     return fc.anything();
@@ -326,27 +395,52 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodVoid() {
     return fc.constant(undefined);
   },
-  ZodOptional(def: ZodOptionalDef, recurse: ZodSchemaToArbitrary) {
+  ZodOptional(
+    schema: ZodOptional<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
     const nil = undefined;
-    return fc.option(recurse(def.innerType), { nil, freq: 2 });
+    return fc.option(recurse(schema._def.innerType, path, recurse), {
+      nil,
+      freq: 2,
+    });
   },
-  ZodNullable(def: ZodNullableDef, recurse: ZodSchemaToArbitrary) {
+  ZodNullable(
+    schema: ZodNullable<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
     const nil = null;
-    return fc.option(recurse(def.innerType), { nil, freq: 2 });
+    return fc.option(recurse(schema._def.innerType, path, recurse), {
+      nil,
+      freq: 2,
+    });
   },
-  ZodDefault(def: ZodDefaultDef, recurse: ZodSchemaToArbitrary) {
-    return fc.oneof(fc.constant(undefined), recurse(def.innerType));
+  ZodDefault(
+    schema: ZodDefault<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    return fc.oneof(
+      fc.constant(undefined),
+      recurse(schema._def.innerType, path, recurse)
+    );
   },
-  ZodEffects(def: ZodEffectsDef, recurse: ZodSchemaToArbitrary) {
-    const preEffectsArbitrary = recurse(def.schema);
+  ZodEffects(
+    schema: ZodEffects<ZodTypeAny>,
+    path: string,
+    recurse: ArbitraryBuilder
+  ) {
+    const preEffectsArbitrary = recurse(schema._def.schema, path, recurse);
 
-    const effectsSchema = new ZodEffects(def);
-
-    return filterArbitraryBySchema(preEffectsArbitrary, effectsSchema);
+    return filterArbitraryBySchema(preEffectsArbitrary, schema, path);
   },
 };
 
 export class ZodFastCheckError extends Error {}
+
+// TODO ZodFastCheckUnsupportedSchemaError
 
 export class ZodFastCheckGenerationError extends ZodFastCheckError {}
 
@@ -363,19 +457,22 @@ const isUnionMember = <T, Filter extends Partial<T>>(filter: Filter) => (
 
 function filterArbitraryBySchema<T>(
   arbitrary: Arbitrary<T>,
-  schema: ZodSchema<any, any, T>
+  schema: ZodSchema<any, any, T>,
+  path: string
 ): Arbitrary<T> {
   return arbitrary.filter(
     throwIfSuccessRateBelow(
       MIN_SUCCESS_RATE,
-      (value): value is typeof value => schema.safeParse(value).success
+      (value): value is typeof value => schema.safeParse(value).success,
+      path
     )
   );
 }
 
 function throwIfSuccessRateBelow<Value, Refined extends Value>(
   rate: number,
-  predicate: (value: Value) => value is Refined
+  predicate: (value: Value) => value is Refined,
+  path: string
 ): (value: Value) => value is Refined {
   const MIN_RUNS = 1000;
 
@@ -391,7 +488,9 @@ function throwIfSuccessRateBelow<Value, Refined extends Value>(
     if (total > MIN_RUNS && successful / total < rate) {
       throw new ZodFastCheckGenerationError(
         "Unable to generate valid values for Zod schema. " +
-          "An override is must be provided."
+          `An override is must be provided for the schema at path '${
+            path || "."
+          }'.`
       );
     }
 

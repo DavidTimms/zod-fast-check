@@ -1,11 +1,12 @@
 import fc from "fast-check";
 import * as z from "zod";
+import { ZodTypeAny } from "zod";
 import {
   ZodFastCheck,
   ZodFastCheckGenerationError,
 } from "../src/zod-fast-check";
 
-describe("Generate arbitaries for Zod schema input types", () => {
+describe("Generate arbitraries for Zod schema input types", () => {
   enum Biscuits {
     Digestive,
     CustardCream,
@@ -19,16 +20,16 @@ describe("Generate arbitaries for Zod schema input types", () => {
   }
 
   const schemas = {
-    // string: z.string(),
-    // number: z.number(),
-    // bigint: z.bigint(),
-    // boolean: z.boolean(),
-    // date: z.date(),
-    // undefined: z.undefined(),
-    // null: z.null(),
-    // "array of numbers": z.array(z.number()),
-    // "array of string": z.array(z.string()),
-    // "array of arrays of booleans": z.array(z.array(z.boolean())),
+    string: z.string(),
+    number: z.number(),
+    bigint: z.bigint(),
+    boolean: z.boolean(),
+    date: z.date(),
+    undefined: z.undefined(),
+    null: z.null(),
+    "array of numbers": z.array(z.number()),
+    "array of string": z.array(z.string()),
+    "array of arrays of booleans": z.array(z.array(z.boolean())),
     "nonempty array": z.array(z.number()).nonempty(),
     "empty object": z.object({}),
     "simple object": z.object({
@@ -108,7 +109,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
   }
 });
 
-describe("Generate arbitaries for Zod schema output types", () => {
+describe("Generate arbitraries for Zod schema output types", () => {
   test("number to string transformer", () => {
     const targetSchema = z.string().refine((s) => !isNaN(+s));
     const schema = z.number().transform(String);
@@ -256,7 +257,12 @@ describe("Throwing an error if it is not able to generate a value", () => {
           return true;
         })
       )
-    ).toThrow(ZodFastCheckGenerationError);
+    ).toThrow(
+      new ZodFastCheckGenerationError(
+        "Unable to generate valid values for Zod schema. " +
+          "An override is must be provided for the schema at path '.'."
+      )
+    );
   });
 
   test("generating output values for an impossible refinement", () => {
@@ -270,4 +276,107 @@ describe("Throwing an error if it is not able to generate a value", () => {
       )
     ).toThrow(ZodFastCheckGenerationError);
   });
+
+  // Tests for the "paths" given in error messages to locate the problematic
+  // sub-schema within a nested schema.
+
+  const impossible = z.string().refine(() => false);
+
+  const cases: {
+    description: string;
+    schema: ZodTypeAny;
+    expectedErrorPath: string;
+  }[] = [
+    {
+      description: "nested objects",
+      schema: z.object({ foo: z.object({ bar: impossible }) }),
+      expectedErrorPath: ".foo.bar",
+    },
+    {
+      description: "arrays",
+      schema: z.object({ items: z.array(impossible) }),
+      expectedErrorPath: ".items[*]",
+    },
+    {
+      description: "unions",
+      schema: z.object({ status: z.union([z.number(), impossible]) }),
+      expectedErrorPath: ".status",
+    },
+    {
+      description: "tuples",
+      schema: z.object({
+        scores: z.record(impossible),
+      }),
+      expectedErrorPath: ".scores[*]",
+    },
+    {
+      description: "map keys",
+      schema: z.object({
+        scores: z.map(impossible, z.number()),
+      }),
+      expectedErrorPath: ".scores.(key)",
+    },
+    {
+      description: "map values",
+      schema: z.object({
+        scores: z.map(z.string(), impossible),
+      }),
+      expectedErrorPath: ".scores.(value)",
+    },
+    {
+      description: "function return types",
+      schema: z.object({
+        myFunction: z.function(z.tuple([]), impossible),
+      }),
+      expectedErrorPath: ".myFunction.(return type)",
+    },
+    {
+      description: "promise resolved types",
+      schema: z.object({
+        myPromise: z.promise(impossible),
+      }),
+      expectedErrorPath: ".myPromise.(resolved type)",
+    },
+    {
+      description: "optional types",
+      schema: z.object({
+        myOptional: z.optional(impossible),
+      }),
+      expectedErrorPath: ".myOptional",
+    },
+    {
+      description: "nullable types",
+      schema: z.object({
+        myNullable: z.nullable(impossible),
+      }),
+      expectedErrorPath: ".myNullable",
+    },
+    {
+      description: "types with defaults",
+      schema: z.object({
+        withDefault: impossible.default(""),
+      }),
+      expectedErrorPath: ".withDefault",
+    },
+    {
+      description: "types with transforms",
+      schema: z.object({
+        withTransform: impossible.transform((s) => !!s),
+      }),
+      expectedErrorPath: ".withTransform",
+    },
+  ];
+
+  for (const { description, schema, expectedErrorPath } of cases) {
+    test("correct error path is shown for " + description, () => {
+      const arbitrary = ZodFastCheck().inputOf(schema);
+
+      expect(() => fc.assert(fc.property(arbitrary, () => true))).toThrow(
+        new ZodFastCheckGenerationError(
+          "Unable to generate valid values for Zod schema. " +
+            `An override is must be provided for the schema at path '${expectedErrorPath}'.`
+        )
+      );
+    });
+  }
 });
