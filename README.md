@@ -2,7 +2,7 @@
 
 A small library to automatically derive [fast-check](https://github.com/dubzzz/fast-check) [arbitraries](https://github.com/dubzzz/fast-check/blob/master/documentation/Arbitraries.md) from schemas defined using the validation library [Zod](https://github.com/colinhacks/zod). These enables easy and thorough property-based testing.
 
-The tool is designed for Zod 3, which brings many new features over Zod 1, but as of writing is still in beta.
+The tool works with Zod 3.5 or later.
 
 ## Usage
 
@@ -77,7 +77,7 @@ Schema overrides are matched based on object identity, so you need to define the
 
 ### Data types
 
-✅ string  
+✅ string (including email, UUID and URL)  
 ✅ number  
 ✅ bigint  
 ✅ boolean  
@@ -90,6 +90,7 @@ Schema overrides are matched based on object identity, so you need to define the
 ✅ tuple  
 ✅ record  
 ✅ map  
+✅ set  
 ✅ function  
 ✅ literal  
 ✅ enum  
@@ -100,6 +101,9 @@ Schema overrides are matched based on object identity, so you need to define the
 ✅ void  
 ✅ optional  
 ✅ nullable  
+✅ default  
+✅ transforms  
+✅ refinements (see below)  
 ❌ intersection  
 ❌ lazy  
 ❌ never  

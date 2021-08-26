@@ -19,16 +19,16 @@ describe("Generate arbitaries for Zod schema input types", () => {
   }
 
   const schemas = {
-    string: z.string(),
-    number: z.number(),
-    bigint: z.bigint(),
-    boolean: z.boolean(),
-    date: z.date(),
-    undefined: z.undefined(),
-    null: z.null(),
-    "array of numbers": z.array(z.number()),
-    "array of string": z.array(z.string()),
-    "array of arrays of booleans": z.array(z.array(z.boolean())),
+    // string: z.string(),
+    // number: z.number(),
+    // bigint: z.bigint(),
+    // boolean: z.boolean(),
+    // date: z.date(),
+    // undefined: z.undefined(),
+    // null: z.null(),
+    // "array of numbers": z.array(z.number()),
+    // "array of string": z.array(z.string()),
+    // "array of arrays of booleans": z.array(z.array(z.boolean())),
     "nonempty array": z.array(z.number()).nonempty(),
     "empty object": z.object({}),
     "simple object": z.object({
@@ -52,6 +52,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
       z.object({ id: z.number() }),
       z.array(z.boolean())
     ),
+    set: z.set(z.number()),
     "function returning boolean": z.function().returns(z.boolean()),
     "literal number": z.literal(123.5),
     "literal string": z.literal("hello"),
@@ -72,6 +73,7 @@ describe("Generate arbitaries for Zod schema input types", () => {
     "optional boolean": z.optional(z.boolean()),
     "nullable string": z.nullable(z.string()),
     "nullable object": z.nullable(z.object({ age: z.number() })),
+    "with default": z.number().default(0),
 
     // Schemas which rely on refinements
     "number with minimum": z.number().min(500),
@@ -82,7 +84,13 @@ describe("Generate arbitaries for Zod schema input types", () => {
     nonpositive: z.number().nonpositive(),
     nonnegative: z.number().nonnegative(),
     "number with custom refinement": z.number().refine((x) => x % 3 === 0),
+
+    "string with minimum length": z.string().min(24),
     "string with maximum length": z.string().max(24),
+    uuid: z.string().uuid(),
+    url: z.string().url(),
+    email: z.string().email(),
+    regex: z.string().regex(/\s/),
 
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
@@ -110,6 +118,19 @@ describe("Generate arbitaries for Zod schema output types", () => {
     return fc.assert(
       fc.property(arbitrary, (value) => {
         targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("deeply nested transformer", () => {
+    const targetSchema = z.array(z.number());
+    const schema = z.array(z.boolean().transform(Number));
+
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.asyncProperty(arbitrary, async (value) => {
+        await targetSchema.parse(value);
       })
     );
   });
@@ -146,6 +167,21 @@ describe("Generate arbitaries for Zod schema output types", () => {
       .int()
       .refine((x) => x < MAX && x > MIN)
       .transform((x) => x * 2);
+
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("schema with default value", () => {
+    // Unlike the input arbitrary, the output arbitrary should never
+    // produce "undefined" for a schema with a default.
+    const targetSchema = z.string();
+    const schema = z.string().default("hello");
 
     const arbitrary = ZodFastCheck().outputOf(schema);
 
@@ -212,7 +248,7 @@ describe("Override the arbitrary for a particular schema type", () => {
 
 describe("Throwing an error if it is not able to generate a value", () => {
   test("generating input values for an impossible refinement", () => {
-    const arbitrary = ZodFastCheck().inputOf(z.string().uuid());
+    const arbitrary = ZodFastCheck().inputOf(z.string().refine(() => false));
 
     expect(() =>
       fc.assert(
@@ -224,7 +260,7 @@ describe("Throwing an error if it is not able to generate a value", () => {
   });
 
   test("generating output values for an impossible refinement", () => {
-    const arbitrary = ZodFastCheck().outputOf(z.string().uuid());
+    const arbitrary = ZodFastCheck().outputOf(z.string().refine(() => false));
 
     expect(() =>
       fc.assert(
