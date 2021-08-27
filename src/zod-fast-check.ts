@@ -27,8 +27,6 @@ import {
 
 const MIN_SUCCESS_RATE = 0.01;
 
-// TODO add GenericArbitraryBuilder
-
 type UnknownZodSchema = ZodSchema<unknown, ZodTypeDef, unknown>;
 
 type SchemaToArbitrary = <Schema extends UnknownZodSchema>(
@@ -121,7 +119,7 @@ class _ZodFastCheck {
         return builder(schema, path, this.inputWithPath.bind(this));
       }
 
-      throw Error(`Unsupported schema type: ${schema.constructor.name}.`);
+      unsupported(`'${schema.constructor.name}'`, path);
     }
   }
 
@@ -305,8 +303,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
       ...schema._def.options.map((option) => recurse(option, path))
     );
   },
-  ZodIntersection() {
-    throw Error("Intersection schemas are not yet supported.");
+  ZodIntersection(_, path: string) {
+    unsupported(`Intersection`, path);
   },
   ZodTuple(schema: ZodTuple, path: string, recurse: SchemaToArbitrary) {
     return fc.genericTuple(
@@ -339,8 +337,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
       path + ".(return type)"
     ).map((returnValue) => () => returnValue);
   },
-  ZodLazy() {
-    throw Error("Lazy schemas are not yet supported.");
+  ZodLazy(_, path: string) {
+    unsupported(`Lazy`, path);
   },
   ZodLiteral(schema: ZodLiteral<unknown>) {
     return fc.constant(schema._def.value);
@@ -367,8 +365,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodUnknown() {
     return fc.anything();
   },
-  ZodNever() {
-    throw Error("A runtime value cannot be generated for a 'never' schema.");
+  ZodNever(_, path: string) {
+    unsupported(`Never`, path);
   },
   ZodVoid() {
     return fc.constant(undefined);
@@ -418,9 +416,16 @@ const arbitraryBuilders: ArbitraryBuilders = {
 
 export class ZodFastCheckError extends Error {}
 
-// TODO ZodFastCheckUnsupportedSchemaError
+export class ZodFastCheckUnsupportedSchemaError extends ZodFastCheckError {}
 
 export class ZodFastCheckGenerationError extends ZodFastCheckError {}
+
+function unsupported(schemaTypeName: string, path: string): never {
+  throw new ZodFastCheckUnsupportedSchemaError(
+    `Unable to generate valid values for Zod schema. ` +
+      `${schemaTypeName} schemas are not supported (at path '${path || "."}').`
+  );
+}
 
 /**
  * Returns a type guard which filters one member from a union type.

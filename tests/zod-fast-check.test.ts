@@ -1,9 +1,10 @@
 import fc from "fast-check";
 import * as z from "zod";
-import { ZodTypeAny } from "zod";
+import { INVALID, OK, ParseContext, ZodSchema, ZodTypeAny } from "zod";
 import {
   ZodFastCheck,
   ZodFastCheckGenerationError,
+  ZodFastCheckUnsupportedSchemaError,
 } from "../src/zod-fast-check";
 
 describe("Generate arbitraries for Zod schema input types", () => {
@@ -247,7 +248,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   });
 });
 
-describe("Throwing an error if it is not able to generate a value", () => {
+describe("Throwing an error if it is not able to generate a value because of a refinement", () => {
   test("generating input values for an impossible refinement", () => {
     const arbitrary = ZodFastCheck().inputOf(z.string().refine(() => false));
 
@@ -379,4 +380,64 @@ describe("Throwing an error if it is not able to generate a value", () => {
       );
     });
   }
+});
+
+describe("Throwing an error if the schema type is not supported", () => {
+  test("lazy schemas", () => {
+    expect(() => ZodFastCheck().inputOf(z.lazy(() => z.string()))).toThrow(
+      new ZodFastCheckUnsupportedSchemaError(
+        "Unable to generate valid values for Zod schema. " +
+          "Lazy schemas are not supported (at path '.')."
+      )
+    );
+  });
+
+  test("never schemas", () => {
+    expect(() => ZodFastCheck().inputOf(z.never())).toThrow(
+      new ZodFastCheckUnsupportedSchemaError(
+        "Unable to generate valid values for Zod schema. " +
+          "Never schemas are not supported (at path '.')."
+      )
+    );
+  });
+
+  test("intersection schemas", () => {
+    expect(() =>
+      ZodFastCheck().inputOf(
+        z.intersection(
+          z.object({ foo: z.string() }),
+          z.object({ bar: z.number() })
+        )
+      )
+    ).toThrow(
+      new ZodFastCheckUnsupportedSchemaError(
+        "Unable to generate valid values for Zod schema. " +
+          "Intersection schemas are not supported (at path '.')."
+      )
+    );
+  });
+
+  test("third-party schemas", () => {
+    type ZodSymbolDef = {
+      symbol: Symbol;
+    };
+
+    class SymbolSchema extends ZodSchema<Symbol, ZodSymbolDef, Symbol> {
+      _parse(ctx: ParseContext, data: any) {
+        if (data === this._def.symbol) {
+          return OK(data);
+        }
+        return INVALID;
+      }
+    }
+
+    expect(() =>
+      ZodFastCheck().inputOf(new SymbolSchema({ symbol: Symbol.iterator }))
+    ).toThrow(
+      new ZodFastCheckUnsupportedSchemaError(
+        "Unable to generate valid values for Zod schema. " +
+          "'SymbolSchema' schemas are not supported (at path '.')."
+      )
+    );
+  });
 });
