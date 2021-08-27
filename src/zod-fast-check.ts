@@ -68,10 +68,14 @@ const SCALAR_TYPES = new Set<`${ZodFirstPartyTypeKind}`>([
   "ZodVoid",
 ]);
 
+type OverrideArbitrary<Input = unknown> =
+  | Arbitrary<unknown>
+  | ((zfc: ZodFastCheck) => Arbitrary<unknown>);
+
 class _ZodFastCheck {
   private overrides = new Map<
     ZodSchema<unknown, ZodTypeDef, unknown>,
-    Arbitrary<unknown>
+    OverrideArbitrary
   >();
 
   private clone(): ZodFastCheck {
@@ -95,32 +99,32 @@ class _ZodFastCheck {
     schema: ZodSchema<unknown, ZodTypeDef, Input>,
     path: string
   ): Arbitrary<Input> {
-    const override = this.overrides.get(schema);
+    const override = this.findOverride(schema);
 
     if (override) {
-      return override as Arbitrary<Input>;
-    } else {
-      // This is an appalling hack which is required to support
-      // the ZodNonEmptyArray type in Zod 3.5 and 3.6. The type was
-      // removed in Zod 3.7.
-      if (schema.constructor.name === "ZodNonEmptyArray") {
-        const def = schema._def as ZodArrayDef;
-        schema = new ZodArray({
-          ...def,
-          minLength: def.minLength ?? { value: 1 },
-        }) as any;
-      }
-
-      if (isFirstPartyType(schema)) {
-        const builder = arbitraryBuilders[
-          schema._def.typeName
-        ] as ArbitraryBuilder<typeof schema>;
-
-        return builder(schema, path, this.inputWithPath.bind(this));
-      }
-
-      unsupported(`'${schema.constructor.name}'`, path);
+      return override;
     }
+
+    // This is an appalling hack which is required to support
+    // the ZodNonEmptyArray type in Zod 3.5 and 3.6. The type was
+    // removed in Zod 3.7.
+    if (schema.constructor.name === "ZodNonEmptyArray") {
+      const def = schema._def as ZodArrayDef;
+      schema = new ZodArray({
+        ...def,
+        minLength: def.minLength ?? { value: 1 },
+      }) as any;
+    }
+
+    if (isFirstPartyType(schema)) {
+      const builder = arbitraryBuilders[
+        schema._def.typeName
+      ] as ArbitraryBuilder<typeof schema>;
+
+      return builder(schema, path, this.inputWithPath.bind(this));
+    }
+
+    unsupported(`'${schema.constructor.name}'`, path);
   }
 
   /**
@@ -153,13 +157,27 @@ class _ZodFastCheck {
       .map((parsed) => parsed.data);
   }
 
+  private findOverride<Input>(
+    schema: ZodSchema<unknown, ZodTypeDef, Input>
+  ): Arbitrary<Input> | null {
+    const override = this.overrides.get(schema);
+
+    if (override) {
+      return (typeof override === "function"
+        ? override(this)
+        : override) as Arbitrary<Input>;
+    }
+
+    return null;
+  }
+
   /**
    * Returns a new `ZodFastCheck` instance which will use the provided
    * arbitrary when generating inputs for the given schema.
    */
   override<Input>(
     schema: ZodSchema<unknown, ZodTypeDef, Input>,
-    arbitrary: Arbitrary<Input>
+    arbitrary: OverrideArbitrary
   ): ZodFastCheck {
     const withOverride = this.clone();
     withOverride.overrides.set(schema, arbitrary);

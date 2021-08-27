@@ -37,7 +37,6 @@ test("User's full name always contains their first and last names", () =>
       expect(name).toContain(user.lastName);
     })
   ));
-
 ```
 
 The main interface is the `ZodFastCheck` class, which has the following methods:
@@ -65,13 +64,27 @@ For example, if we have a schema which validates that a string has a prefix, we 
 ```ts
 const WithFoo = z.string().regex(/^foo/);
 
-const zodFastCheck = ZodFastCheck()
-  .override(WithFoo, fc.string().map(s => "foo" + s));
+const zodFastCheck = ZodFastCheck().override(
+  WithFoo,
+  fc.string().map((s) => "foo" + s)
+);
 
 const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ```
 
 Schema overrides are matched based on object identity, so you need to define the override using the exact schema object, rather than an equivalent schema.
+
+If you need to use zod-fast-check to generate the override, it is easy to end up with a circular dependency. You can avoid this by defining the override lazily using a function. This function is called with the `ZodFastCheck` instance as an argument.
+
+```ts
+const WithFoo = z.string().regex(/^foo/);
+
+const zodFastCheck = ZodFastCheck().override(WithFoo, (zfc) =>
+  zfc.inputOf(z.string()).map((s) => "foo" + s)
+);
+
+const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
+```
 
 ## Supported Zod Schema Features
 
@@ -106,7 +119,7 @@ Schema overrides are matched based on object identity, so you need to define the
 ✅ refinements (see below)  
 ❌ intersection  
 ❌ lazy  
-❌ never  
+❌ never
 
 ### Refinements
 

@@ -246,6 +246,22 @@ describe("Override the arbitrary for a particular schema type", () => {
       })
     );
   });
+
+  test("using a function to lazily define an override", () => {
+    const NumericString = z.string().regex(/^\d+$/);
+
+    const zfc = ZodFastCheck().override(NumericString, (zfc) =>
+      zfc.inputOf(z.number().int().nonnegative()).map(String)
+    );
+
+    const arbitrary = zfc.outputOf(NumericString);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        expect(value).toMatch(/^\d+$/);
+      })
+    );
+  });
 });
 
 describe("Throwing an error if it is not able to generate a value because of a refinement", () => {
