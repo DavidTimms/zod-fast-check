@@ -23,6 +23,8 @@ import {
   ZodOptional,
   ZodNullable,
   ZodDefault,
+  input,
+  output,
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
@@ -69,8 +71,8 @@ const SCALAR_TYPES = new Set<`${ZodFirstPartyTypeKind}`>([
 ]);
 
 type OverrideArbitrary<Input = unknown> =
-  | Arbitrary<unknown>
-  | ((zfc: ZodFastCheck) => Arbitrary<unknown>);
+  | Arbitrary<Input>
+  | ((zfc: ZodFastCheck) => Arbitrary<Input>);
 
 class _ZodFastCheck {
   private overrides = new Map<
@@ -89,9 +91,9 @@ class _ZodFastCheck {
   /**
    * Creates an arbitrary which will generate valid inputs to the schema.
    */
-  inputOf<Input>(
-    schema: ZodSchema<unknown, ZodTypeDef, Input>
-  ): Arbitrary<Input> {
+  inputOf<Schema extends UnknownZodSchema>(
+    schema: Schema
+  ): Arbitrary<input<Schema>> {
     return this.inputWithPath(schema, "");
   }
 
@@ -131,16 +133,18 @@ class _ZodFastCheck {
    * Creates an arbitrary which will generate valid parsed outputs of
    * the schema.
    */
-  outputOf<Output, Input>(
-    schema: ZodSchema<Output, ZodTypeDef, Input>
-  ): Arbitrary<Output> {
+  outputOf<Schema extends UnknownZodSchema>(
+    schema: Schema
+  ): Arbitrary<output<Schema>> {
     let inputArbitrary = this.inputOf(schema);
 
     // For scalar types, the input is always the same as the output,
     // so we can just use the input arbitrary unchanged.
     if (
       isFirstPartyType(schema) &&
-      SCALAR_TYPES.has(`${schema._def.typeName}` as const)
+      SCALAR_TYPES.has(
+        `${(schema as ZodFirstPartySchemaTypes)._def.typeName}` as const
+      )
     ) {
       return inputArbitrary as Arbitrary<any>;
     }
@@ -175,9 +179,9 @@ class _ZodFastCheck {
    * Returns a new `ZodFastCheck` instance which will use the provided
    * arbitrary when generating inputs for the given schema.
    */
-  override<Input>(
-    schema: ZodSchema<unknown, ZodTypeDef, Input>,
-    arbitrary: OverrideArbitrary
+  override<Schema extends UnknownZodSchema>(
+    schema: Schema,
+    arbitrary: OverrideArbitrary<input<Schema>>
   ): ZodFastCheck {
     const withOverride = this.clone();
     withOverride.overrides.set(schema, arbitrary);
