@@ -247,8 +247,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
     }
   },
   ZodNumber(schema: ZodNumber) {
-    let min = -(2 ** 64);
-    let max = 2 ** 64;
+    let min = Number.MIN_SAFE_INTEGER;
+    let max = Number.MAX_SAFE_INTEGER;
     let isInt = false;
 
     for (const check of schema._def.checks) {
