@@ -80,6 +80,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     // Schemas which rely on refinements
     "number with minimum": z.number().min(500),
     "number with maximum": z.number().max(500),
+    "number with float max and min": z.number().min(0.5).max(1.5),
     int: z.number().int(),
     positive: z.number().positive(),
     negative: z.number().negative(),
