@@ -36,7 +36,7 @@
   },
   "homepage": "https://github.com/DavidTimms/zod-fast-check",
   "devDependencies": {
-    "fast-check": "^2.0.0",
+    "fast-check": "^2.24.0",
     "jest": "^26.6.3",
     "prettier": "^2.2.1",
     "ts-jest": "^26.4.4",
