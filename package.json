@@ -1,6 +1,6 @@
 {
   "name": "zod-fast-check",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Generate fast-check arbitraries from Zod schemas.",
   "main": "dist/zod-fast-check.js",
   "types": "dist/zod-fast-check.d.ts",
