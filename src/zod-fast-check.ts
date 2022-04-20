@@ -264,8 +264,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
             max,
             check.inclusive ? check.value : check.value - 0.001
           );
+          break;
         case "int":
           isInt = true;
+          break;
       }
     }
 
