@@ -241,7 +241,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
 
     if (maxLength === null) maxLength = 2 * minLength + 10;
 
-    const unfiltered = fc.string(minLength, maxLength);
+    const unfiltered = fc.string({
+      minLength,
+      maxLength,
+    });
 
     if (hasRegexCheck) {
       return filterArbitraryBySchema(unfiltered, schema, path);
@@ -275,9 +278,16 @@ const arbitraryBuilders: ArbitraryBuilders = {
     }
 
     if (isInt) {
-      return fc.integer(min, max);
+      return fc.integer({ min, max });
     } else {
-      return fc.double(min, max);
+      return fc.double({
+        min,
+        max,
+        // fast-check 3 considers NaN to be a Number by default,
+        // but Zod does not consider NaN to be a Number
+        // see https://github.com/dubzzz/fast-check/blob/main/packages/fast-check/MIGRATION_2.X_TO_3.X.md#new-floating-point-arbitraries-
+        noNaN: true,
+      });
     }
   },
   ZodBigInt() {
@@ -302,11 +312,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ) {
     const minLength = schema._def.minLength?.value ?? 0;
     const maxLength = Math.min(schema._def.maxLength?.value ?? 10, 10);
-    return fc.array(
-      recurse(schema._def.type, path + "[*]"),
+    return fc.array(recurse(schema._def.type, path + "[*]"), {
       minLength,
-      maxLength
-    );
+      maxLength,
+    });
   },
   ZodObject(
     schema: ZodObject<ZodRawShape>,
@@ -334,9 +343,13 @@ const arbitraryBuilders: ArbitraryBuilders = {
     unsupported(`Intersection`, path);
   },
   ZodTuple(schema: ZodTuple, path: string, recurse: SchemaToArbitrary) {
-    return fc.genericTuple(
-      schema._def.items.map((item, index) => recurse(item, `${path}[${index}]`))
-    ) as Arbitrary<[any, ...any[]]>;
+    // As of https://github.com/dubzzz/fast-check/commit/18afcb2d6fe9ed9b93abad795660687c87e74f61
+    // fc.genericTuple has been replaced with fc.tuple
+    return fc.tuple(
+      ...schema._def.items.map((item, index) =>
+        recurse(item, `${path}[${index}]`)
+      )
+    );
   },
   ZodRecord(schema: ZodRecord, path: string, recurse: SchemaToArbitrary) {
     return fc.dictionary(
@@ -350,8 +363,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
     return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
   ZodSet(schema: ZodSet, path: string, recurse: SchemaToArbitrary) {
+    // As of https://github.com/dubzzz/fast-check/commit/8b8e3edd913ce6172339503d20cf3f67eb9676a1
+    // fc.set is now fc.uniqueArray
     return fc
-      .set(recurse(schema._def.valueType, path + ".(value)"))
+      .uniqueArray(recurse(schema._def.valueType, path + ".(value)"))
       .map((members) => new Set(members));
   },
   ZodFunction(
