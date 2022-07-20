@@ -92,6 +92,7 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 
 ✅ string (including email, UUID and URL)  
 ✅ number  
+✅ nan  
 ✅ bigint  
 ✅ boolean  
 ✅ date  
@@ -100,6 +101,7 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ✅ array  
 ✅ object  
 ✅ union  
+✅ discriminated union  
 ✅ tuple  
 ✅ record  
 ✅ map  

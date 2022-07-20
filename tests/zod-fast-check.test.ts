@@ -1,6 +1,14 @@
 import fc from "fast-check";
 import * as z from "zod";
-import { INVALID, OK, ParseContext, ZodSchema, ZodTypeAny } from "zod";
+import {
+  INVALID,
+  OK,
+  ParseInput,
+  ParseReturnType,
+  ZodSchema,
+  ZodTypeAny,
+  ZodTypeDef,
+} from "zod";
 import {
   ZodFastCheck,
   ZodFastCheckGenerationError,
@@ -44,6 +52,20 @@ describe("Generate arbitraries for Zod schema input types", () => {
       }),
     }),
     union: z.union([z.boolean(), z.string()]),
+    "discriminated union": z.discriminatedUnion("type", [
+      z.object({ type: z.literal("a"), a: z.string() }),
+      z.object({
+        type: z.literal("b"),
+        b: z.object({
+          x: z.string(),
+        }),
+      }),
+      z.object({
+        type: z.literal("c"),
+        c: z.number(),
+      }),
+    ]),
+    nan: z.nan(),
     "empty tuple": z.tuple([]),
     "nonempty tuple": z.tuple([z.string(), z.boolean(), z.date()]),
     "nested tuple": z.tuple([z.string(), z.tuple([z.number()])]),
@@ -321,6 +343,14 @@ describe("Throwing an error if it is not able to generate a value because of a r
       expectedErrorPath: ".status",
     },
     {
+      description: "discriminated unions",
+      schema: z.discriminatedUnion("type", [
+        z.object({ type: z.literal("a"), a: impossible }),
+        z.object({ type: z.literal("b"), b: z.string() }),
+      ]),
+      expectedErrorPath: ".a",
+    },
+    {
       description: "tuples",
       schema: z.object({
         scores: z.record(impossible),
@@ -435,12 +465,12 @@ describe("Throwing an error if the schema type is not supported", () => {
   });
 
   test("third-party schemas", () => {
-    type ZodSymbolDef = {
+    interface ZodSymbolDef extends ZodTypeDef {
       symbol: Symbol;
-    };
+    }
 
     class SymbolSchema extends ZodSchema<Symbol, ZodSymbolDef, Symbol> {
-      _parse(ctx: ParseContext, data: any) {
+      _parse({ data }: ParseInput): ParseReturnType<Symbol> {
         if (data === this._def.symbol) {
           return OK(data);
         }

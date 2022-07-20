@@ -1,30 +1,33 @@
 import fc, { Arbitrary } from "fast-check";
 import {
-  ZodSchema,
-  ZodTypeDef,
-  ZodArrayDef,
-  ZodString,
-  ZodEffects,
-  ZodFirstPartySchemaTypes,
-  ZodNumber,
-  ZodArray,
-  ZodObject,
-  ZodRawShape,
-  ZodUnion,
-  ZodTuple,
-  ZodRecord,
-  ZodMap,
-  ZodSet,
-  ZodFunction,
-  ZodLiteral,
-  ZodEnum,
-  ZodNativeEnum,
-  ZodPromise,
-  ZodOptional,
-  ZodNullable,
-  ZodDefault,
   input,
   output,
+  Primitive,
+  ZodArray,
+  ZodArrayDef,
+  ZodDefault,
+  ZodDiscriminatedUnion,
+  ZodDiscriminatedUnionOption,
+  ZodEffects,
+  ZodEnum,
+  ZodFirstPartySchemaTypes,
+  ZodFunction,
+  ZodLiteral,
+  ZodMap,
+  ZodNativeEnum,
+  ZodNullable,
+  ZodNumber,
+  ZodObject,
+  ZodOptional,
+  ZodPromise,
+  ZodRawShape,
+  ZodRecord,
+  ZodSchema,
+  ZodSet,
+  ZodString,
+  ZodTuple,
+  ZodTypeDef,
+  ZodUnion,
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
@@ -50,9 +53,8 @@ type ArbitraryBuilders = {
   >;
 };
 
-type ExtractFirstPartySchemaType<
-  TypeName extends ZodFirstPartyTypeKind
-> = Extract<ZodFirstPartySchemaTypes, { _def: { typeName: TypeName } }>;
+type ExtractFirstPartySchemaType<TypeName extends ZodFirstPartyTypeKind> =
+  Extract<ZodFirstPartySchemaTypes, { _def: { typeName: TypeName } }>;
 
 const SCALAR_TYPES = new Set<`${ZodFirstPartyTypeKind}`>([
   "ZodString",
@@ -167,9 +169,9 @@ class _ZodFastCheck {
     const override = this.overrides.get(schema);
 
     if (override) {
-      return (typeof override === "function"
-        ? override(this)
-        : override) as Arbitrary<Input>;
+      return (
+        typeof override === "function" ? override(this) : override
+      ) as Arbitrary<Input>;
     }
 
     return null;
@@ -356,12 +358,11 @@ const arbitraryBuilders: ArbitraryBuilders = {
     path: string,
     recurse: SchemaToArbitrary
   ) {
-    return recurse(
-      schema._def.returns,
-      path + ".(return type)"
-    ).map((returnValue) => () => returnValue);
+    return recurse(schema._def.returns, path + ".(return type)").map(
+      (returnValue) => () => returnValue
+    );
   },
-  ZodLazy(_, path: string) {
+  ZodLazy(_: unknown, path: string) {
     unsupported(`Lazy`, path);
   },
   ZodLiteral(schema: ZodLiteral<unknown>) {
@@ -389,7 +390,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodUnknown() {
     return fc.anything();
   },
-  ZodNever(_, path: string) {
+  ZodNever(_: unknown, path: string) {
     unsupported(`Never`, path);
   },
   ZodVoid() {
@@ -436,6 +437,34 @@ const arbitraryBuilders: ArbitraryBuilders = {
 
     return filterArbitraryBySchema(preEffectsArbitrary, schema, path);
   },
+  ZodDiscriminatedUnion(
+    schema: ZodDiscriminatedUnion<
+      string,
+      Primitive,
+      ZodDiscriminatedUnionOption<string, Primitive>
+    >,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    const keys = [...schema._def.options.keys()].sort();
+
+    return fc.oneof(
+      ...keys.map((discriminator) => {
+        const option = schema._def.options.get(discriminator);
+        if (option === undefined) {
+          throw new Error(
+            `${discriminator} should correspond to a variant discriminator, but it does not`
+          );
+        }
+        return recurse(option, path);
+      })
+    );
+  },
+  ZodNaN() {
+    // This should really be doing some thing like
+    // Arbitrary IEEE754 NaN -> DataView -> Number (NaN)
+    return fc.constant(Number.NaN);
+  },
 };
 
 export class ZodFastCheckError extends Error {}
@@ -454,13 +483,13 @@ function unsupported(schemaTypeName: string, path: string): never {
 /**
  * Returns a type guard which filters one member from a union type.
  */
-const isUnionMember = <T, Filter extends Partial<T>>(filter: Filter) => (
-  value: T
-): value is Extract<T, Filter> => {
-  return Object.entries(filter).every(
-    ([key, expected]) => value[key as keyof T] === expected
-  );
-};
+const isUnionMember =
+  <T, Filter extends Partial<T>>(filter: Filter) =>
+  (value: T): value is Extract<T, Filter> => {
+    return Object.entries(filter).every(
+      ([key, expected]) => value[key as keyof T] === expected
+    );
+  };
 
 function filterArbitraryBySchema<T>(
   arbitrary: Arbitrary<T>,
