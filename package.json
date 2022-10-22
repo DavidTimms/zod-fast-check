@@ -46,6 +46,6 @@
   },
   "peerDependencies": {
     "fast-check": "^2.0.0",
-    "zod": "^3.5.0"
+    "zod": "^3.13.2"
   }
 }
