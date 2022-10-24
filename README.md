@@ -117,6 +117,7 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ✅ optional  
 ✅ nullable  
 ✅ default  
+✅ branded types  
 ✅ transforms  
 ✅ refinements (see below)  
 ❌ intersection  
