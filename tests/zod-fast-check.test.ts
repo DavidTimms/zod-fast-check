@@ -28,6 +28,8 @@ describe("Generate arbitraries for Zod schema input types", () => {
     VictoriaSponge = "VICTORIA_SPONGE",
   }
 
+  const penguinSymbol = Symbol.for("penguin")
+
   const schemas = {
     string: z.string(),
     number: z.number(),
@@ -66,6 +68,9 @@ describe("Generate arbitraries for Zod schema input types", () => {
       }),
     ]),
     nan: z.nan(),
+    "string branded with string": z.string().brand<"timezone">(),
+    "object branded with number": z.object({a: z.boolean()}).brand<123>(),
+    "array branded with symbol": z.array(z.number()).brand<typeof penguinSymbol>(),
     "empty tuple": z.tuple([]),
     "nonempty tuple": z.tuple([z.string(), z.boolean(), z.date()]),
     "nested tuple": z.tuple([z.string(), z.tuple([z.number()])]),
@@ -216,6 +221,19 @@ describe("Generate arbitraries for Zod schema output types", () => {
       })
     );
   });
+
+  test("a branded type schema uses an arbitrary for the underlying schema", () => {
+    const schema = z.string().brand<"brand">();
+    type BrandedString = z.output<typeof schema>;
+    
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value: BrandedString) => {
+        expect(typeof value).toBe("string");
+      })
+    )
+  })
 });
 
 describe("Override the arbitrary for a particular schema type", () => {

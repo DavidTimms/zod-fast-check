@@ -5,6 +5,7 @@ import {
   Primitive,
   ZodArray,
   ZodArrayDef,
+  ZodBranded,
   ZodDefault,
   ZodDiscriminatedUnion,
   ZodDiscriminatedUnionOption,
@@ -465,6 +466,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
     // Arbitrary IEEE754 NaN -> DataView -> Number (NaN)
     return fc.constant(Number.NaN);
   },
+  ZodBranded(schema: ZodBranded<UnknownZodSchema, string | number | symbol>, path: string, recurse: SchemaToArbitrary) {
+    return recurse(schema.unwrap(), path);
+  }
 };
 
 export class ZodFastCheckError extends Error {}
