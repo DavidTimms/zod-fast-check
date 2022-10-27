@@ -343,8 +343,6 @@ const arbitraryBuilders: ArbitraryBuilders = {
     unsupported(`Intersection`, path);
   },
   ZodTuple(schema: ZodTuple, path: string, recurse: SchemaToArbitrary) {
-    // As of https://github.com/dubzzz/fast-check/commit/18afcb2d6fe9ed9b93abad795660687c87e74f61
-    // fc.genericTuple has been replaced with fc.tuple
     return fc.tuple(
       ...schema._def.items.map((item, index) =>
         recurse(item, `${path}[${index}]`)
@@ -363,10 +361,11 @@ const arbitraryBuilders: ArbitraryBuilders = {
     return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
   ZodSet(schema: ZodSet, path: string, recurse: SchemaToArbitrary) {
-    // As of https://github.com/dubzzz/fast-check/commit/8b8e3edd913ce6172339503d20cf3f67eb9676a1
-    // fc.set is now fc.uniqueArray
+    const minLength = schema._def.minSize?.value ?? 0;
+    const maxLength = Math.min(schema._def.maxSize?.value ?? 10, 10);
+
     return fc
-      .uniqueArray(recurse(schema._def.valueType, path + ".(value)"))
+      .uniqueArray(recurse(schema._def.valueType, path + ".(value)"), {minLength, maxLength})
       .map((members) => new Set(members));
   },
   ZodFunction(
