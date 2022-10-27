@@ -365,7 +365,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
     const maxLength = Math.min(schema._def.maxSize?.value ?? 10, 10);
 
     return fc
-      .uniqueArray(recurse(schema._def.valueType, path + ".(value)"), {minLength, maxLength})
+      .uniqueArray(recurse(schema._def.valueType, path + ".(value)"), {
+        minLength,
+        maxLength,
+      })
       .map((members) => new Set(members));
   },
   ZodFunction(
@@ -480,9 +483,13 @@ const arbitraryBuilders: ArbitraryBuilders = {
     // Arbitrary IEEE754 NaN -> DataView -> Number (NaN)
     return fc.constant(Number.NaN);
   },
-  ZodBranded(schema: ZodBranded<UnknownZodSchema, string | number | symbol>, path: string, recurse: SchemaToArbitrary) {
+  ZodBranded(
+    schema: ZodBranded<UnknownZodSchema, string | number | symbol>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
     return recurse(schema.unwrap(), path);
-  }
+  },
 };
 
 export class ZodFastCheckError extends Error {}
