@@ -350,8 +350,11 @@ const arbitraryBuilders: ArbitraryBuilders = {
     return fc.array(fc.tuple(key, value)).map((entries) => new Map(entries));
   },
   ZodSet(schema: ZodSet, path: string, recurse: SchemaToArbitrary) {
+    const minSize = schema._def.minSize?.value ?? 0;
+    const maxSize = Math.min(schema._def.maxSize?.value ?? 10, 10);
+
     return fc
-      .set(recurse(schema._def.valueType, path + ".(value)"))
+      .set(recurse(schema._def.valueType, path + ".(value)"), minSize, maxSize)
       .map((members) => new Set(members));
   },
   ZodFunction(

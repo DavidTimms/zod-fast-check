@@ -82,6 +82,9 @@ describe("Generate arbitraries for Zod schema input types", () => {
       z.array(z.boolean())
     ),
     set: z.set(z.number()),
+    "nonempty set": z.set(z.number()).nonempty(),
+    "set with min": z.set(z.number()).min(2),
+    "set with max": z.set(z.number()).max(3),
     "function returning boolean": z.function().returns(z.boolean()),
     "literal number": z.literal(123.5),
     "literal string": z.literal("hello"),
