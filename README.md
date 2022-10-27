@@ -2,8 +2,6 @@
 
 A small library to automatically derive [fast-check](https://github.com/dubzzz/fast-check) [arbitraries](https://github.com/dubzzz/fast-check/blob/master/documentation/Arbitraries.md) from schemas defined using the validation library [Zod](https://github.com/colinhacks/zod). These enables easy and thorough property-based testing.
 
-The tool works with Zod 3.5 or later.
-
 ## Usage
 
 Here is a complete example using [Jest](https://jestjs.io/).
