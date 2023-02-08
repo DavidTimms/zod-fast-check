@@ -20,6 +20,7 @@ import {
   ZodNumber,
   ZodObject,
   ZodOptional,
+  ZodPipeline,
   ZodPromise,
   ZodRawShape,
   ZodRecord,
@@ -458,20 +459,21 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodDiscriminatedUnion(
     schema: ZodDiscriminatedUnion<
       string,
-      Primitive,
-      ZodDiscriminatedUnionOption<string, Primitive>
+      ZodDiscriminatedUnionOption<string>[]
     >,
     path: string,
     recurse: SchemaToArbitrary
   ) {
-    const keys = [...schema._def.options.keys()].sort();
+    const keys = [...schema._def.optionsMap.keys()].sort();
 
     return fc.oneof(
       ...keys.map((discriminator) => {
-        const option = schema._def.options.get(discriminator);
+        const option = schema._def.optionsMap.get(discriminator);
         if (option === undefined) {
           throw new Error(
-            `${discriminator} should correspond to a variant discriminator, but it does not`
+            `${String(
+              discriminator
+            )} should correspond to a variant discriminator, but it does not`
           );
         }
         return recurse(option, path);
@@ -489,6 +491,22 @@ const arbitraryBuilders: ArbitraryBuilders = {
     recurse: SchemaToArbitrary
   ) {
     return recurse(schema.unwrap(), path);
+  },
+  ZodCatch() {
+    throw Error();
+  },
+  ZodPipeline(
+    schema: ZodPipeline<UnknownZodSchema, UnknownZodSchema>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    return recurse(schema._def.in, path).filter(
+      throwIfSuccessRateBelow(
+        MIN_SUCCESS_RATE,
+        (value): value is typeof value => schema.safeParse(value).success,
+        path
+      )
+    )
   },
 };
 

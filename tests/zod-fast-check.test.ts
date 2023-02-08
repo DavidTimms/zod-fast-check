@@ -127,6 +127,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
 
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
+    "string to number pipeline": z.string().transform(s => s.length).pipe(z.number().min(5))
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
@@ -236,7 +237,20 @@ describe("Generate arbitraries for Zod schema output types", () => {
         expect(typeof value).toBe("string");
       })
     )
-  })
+  });
+
+  test("string to number pipeline", () => {
+    const targetSchema = z.number().min(5).int();
+    const schema = z.string().transform(s => s.length).pipe(z.number().min(5));
+
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        targetSchema.parse(value);
+      })
+    );
+  });
 });
 
 describe("Override the arbitrary for a particular schema type", () => {
@@ -308,7 +322,7 @@ describe("Override the arbitrary for a particular schema type", () => {
   });
 });
 
-describe("Throwing an error if it is not able to generate a value because of a refinement", () => {
+describe("Throwing an error if it is not able to generate a value", () => {
   test("generating input values for an impossible refinement", () => {
     const arbitrary = ZodFastCheck().inputOf(z.string().refine(() => false));
 
@@ -448,6 +462,23 @@ describe("Throwing an error if it is not able to generate a value because of a r
       );
     });
   }
+
+  test("generating input values for an impossible pipeline", () => {
+    const arbitrary = ZodFastCheck().inputOf(z.string().pipe(z.boolean()));
+
+    expect(() =>
+      fc.assert(
+        fc.property(arbitrary, (value) => {
+          return true;
+        })
+      )
+    ).toThrow(
+      new ZodFastCheckGenerationError(
+        "Unable to generate valid values for Zod schema. " +
+          "An override is must be provided for the schema at path '.'."
+      )
+    );
+  });
 });
 
 describe("Throwing an error if the schema type is not supported", () => {
