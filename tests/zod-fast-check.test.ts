@@ -127,7 +127,12 @@ describe("Generate arbitraries for Zod schema input types", () => {
 
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
-    "string to number pipeline": z.string().transform(s => s.length).pipe(z.number().min(5))
+    "string to number pipeline": z.string().transform(s => s.length).pipe(z.number().min(5)),
+    "Coerced string": z.coerce.string(),
+    "Coerced number": z.coerce.number(),
+    "Coerced boolean": z.coerce.boolean(),
+    "Coerced bigint": z.coerce.bigint(),
+    "Coerced date": z.coerce.date(),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
