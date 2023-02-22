@@ -6,6 +6,7 @@ import {
   ZodArray,
   ZodArrayDef,
   ZodBranded,
+  ZodCatch,
   ZodDefault,
   ZodDiscriminatedUnion,
   ZodDiscriminatedUnionOption,
@@ -492,8 +493,12 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ) {
     return recurse(schema.unwrap(), path);
   },
-  ZodCatch() {
-    throw Error();
+  ZodCatch(
+    schema: ZodCatch<UnknownZodSchema>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    return fc.oneof(recurse(schema._def.innerType, path), fc.anything());
   },
   ZodPipeline(
     schema: ZodPipeline<UnknownZodSchema, UnknownZodSchema>,

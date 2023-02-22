@@ -133,6 +133,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "Coerced boolean": z.coerce.boolean(),
     "Coerced bigint": z.coerce.bigint(),
     "Coerced date": z.coerce.date(),
+    "string with catch": z.string().catch("fallback"),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
@@ -221,6 +222,19 @@ describe("Generate arbitraries for Zod schema output types", () => {
     // produce "undefined" for a schema with a default.
     const targetSchema = z.string();
     const schema = z.string().default("hello");
+
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("string with catch", () => {
+    const targetSchema = z.string();
+    const schema = z.string().catch("fallback");
 
     const arbitrary = ZodFastCheck().outputOf(schema);
 
