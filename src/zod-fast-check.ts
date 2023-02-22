@@ -465,11 +465,16 @@ const arbitraryBuilders: ArbitraryBuilders = {
     path: string,
     recurse: SchemaToArbitrary
   ) {
-    const keys = [...schema._def.optionsMap.keys()].sort();
+    // In Zod 3.18 & 3.19, the property is called "options". In later
+    // versions it was renamed "optionsMap". Here we use a fallback to
+    // support whichever version of Zod the user has installed.
+    const optionsMap = schema._def.optionsMap ?? schema._def.options;
+
+    const keys = [...optionsMap.keys()].sort();
 
     return fc.oneof(
       ...keys.map((discriminator) => {
-        const option = schema._def.optionsMap.get(discriminator);
+        const option = optionsMap.get(discriminator);
         if (option === undefined) {
           throw new Error(
             `${String(
