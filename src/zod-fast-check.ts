@@ -506,7 +506,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
         (value): value is typeof value => schema.safeParse(value).success,
         path
       )
-    )
+    );
   },
 };
 
