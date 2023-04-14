@@ -45,7 +45,7 @@
     "zod": "^3.20.5"
   },
   "peerDependencies": {
-    "fast-check": "^2.23.0",
+    "fast-check": ">2.23.0 <4.0.0",
     "zod": "^3.18.0"
   }
 }
