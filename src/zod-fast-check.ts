@@ -235,6 +235,39 @@ const arbitraryBuilders: ArbitraryBuilders = {
           return fc.emailAddress();
         case "url":
           return fc.webUrl();
+        case "datetime":
+          let arb = fc
+            .date({
+              min: new Date("0000-01-01T00:00:00Z"),
+              max: new Date("9999-12-31T23:59:59Z"),
+            })
+            .map((date) => date.toISOString());
+
+          // TODO support "precision" option.
+
+          if (check.offset) {
+            // Add an arbitrary timezone offset on, if the schema supports it.
+            // UTC−12:00 is the furthest behind UTC, UTC+14:00 is the furthest ahead.
+            // This does not generate offsets for half-hour and 15 minute timezones.
+            arb = arb.chain((utcIsoDatetime) =>
+              fc.integer({ min: -12, max: +14 }).map((offsetHours) => {
+                if (offsetHours === 0) {
+                  return utcIsoDatetime;
+                } else {
+                  const sign = offsetHours > 0 ? "+" : "-";
+                  const paddedHours = Math.abs(offsetHours)
+                    .toString()
+                    .padStart(2, "0");
+                  return utcIsoDatetime.replace(
+                    /Z$/,
+                    `${sign}${paddedHours}:00`
+                  );
+                }
+              })
+            );
+          }
+
+          return arb;
         case "regex":
           hasRegexCheck = true;
           break;

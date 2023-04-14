@@ -124,6 +124,8 @@ describe("Generate arbitraries for Zod schema input types", () => {
     url: z.string().url(),
     email: z.string().email(),
     regex: z.string().regex(/\s/),
+    datetime: z.string().datetime(),
+    "datetime with offset": z.string().datetime({offset: true}),
 
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
