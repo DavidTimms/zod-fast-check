@@ -126,7 +126,8 @@ describe("Generate arbitraries for Zod schema input types", () => {
     regex: z.string().regex(/\s/),
     datetime: z.string().datetime(),
     "datetime with offset": z.string().datetime({offset: true}),
-
+    "datetime with low precision": z.string().datetime({precision: 0}),
+    "datetime with high precision": z.string().datetime({precision: 6}),
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
     "string to number pipeline": z.string().transform(s => s.length).pipe(z.number().min(5)),

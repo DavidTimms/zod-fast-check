@@ -236,38 +236,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "url":
           return fc.webUrl();
         case "datetime":
-          let arb = fc
-            .date({
-              min: new Date("0000-01-01T00:00:00Z"),
-              max: new Date("9999-12-31T23:59:59Z"),
-            })
-            .map((date) => date.toISOString());
-
-          // TODO support "precision" option.
-
-          if (check.offset) {
-            // Add an arbitrary timezone offset on, if the schema supports it.
-            // UTC−12:00 is the furthest behind UTC, UTC+14:00 is the furthest ahead.
-            // This does not generate offsets for half-hour and 15 minute timezones.
-            arb = arb.chain((utcIsoDatetime) =>
-              fc.integer({ min: -12, max: +14 }).map((offsetHours) => {
-                if (offsetHours === 0) {
-                  return utcIsoDatetime;
-                } else {
-                  const sign = offsetHours > 0 ? "+" : "-";
-                  const paddedHours = Math.abs(offsetHours)
-                    .toString()
-                    .padStart(2, "0");
-                  return utcIsoDatetime.replace(
-                    /Z$/,
-                    `${sign}${paddedHours}:00`
-                  );
-                }
-              })
-            );
-          }
-
-          return arb;
+          return createDatetimeStringArb(schema, check);
         case "regex":
           hasRegexCheck = true;
           break;
@@ -564,6 +533,51 @@ function unsupported(schemaTypeName: string, path: string): never {
     `Unable to generate valid values for Zod schema. ` +
       `${schemaTypeName} schemas are not supported (at path '${path || "."}').`
   );
+}
+
+function createDatetimeStringArb(
+  schema: ZodString,
+  check: { precision: number | null; offset: boolean }
+): Arbitrary<string> {
+  let arb = fc
+    .date({
+      min: new Date("0000-01-01T00:00:00Z"),
+      max: new Date("9999-12-31T23:59:59Z"),
+    })
+    .map((date) => date.toISOString());
+
+  if (check.precision === 0) {
+    arb = arb.map((utcIsoDatetime) => utcIsoDatetime.replace(/\.\d+Z$/, `Z`));
+  } else if (check.precision !== null) {
+    const precision = check.precision;
+    arb = arb.chain((utcIsoDatetime) =>
+      fc
+        .integer({ min: 0, max: Math.pow(10, precision) - 1 })
+        .map((x) => x.toString().padStart(precision, "0"))
+        .map((fractionalDigits) =>
+          utcIsoDatetime.replace(/\.\d+Z$/, `.${fractionalDigits}Z`)
+        )
+    );
+  }
+
+  if (check.offset) {
+    // Add an arbitrary timezone offset on, if the schema supports it.
+    // UTC−12:00 is the furthest behind UTC, UTC+14:00 is the furthest ahead.
+    // This does not generate offsets for half-hour and 15 minute timezones.
+    arb = arb.chain((utcIsoDatetime) =>
+      fc.integer({ min: -12, max: +14 }).map((offsetHours) => {
+        if (offsetHours === 0) {
+          return utcIsoDatetime;
+        } else {
+          const sign = offsetHours > 0 ? "+" : "-";
+          const paddedHours = Math.abs(offsetHours).toString().padStart(2, "0");
+          return utcIsoDatetime.replace(/Z$/, `${sign}${paddedHours}:00`);
+        }
+      })
+    );
+  }
+
+  return arb;
 }
 
 /**
