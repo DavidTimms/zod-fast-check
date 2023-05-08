@@ -265,8 +265,7 @@ describe("Generate arbitraries for Zod schema output types", () => {
 
     return fc.assert(
       fc.property(arbitrary, (value) => {
-        value.match(/^\s/) === null &&
-        value.match(/\s$/) === null
+        value.match(/^\s/) === null && value.match(/\s$/) === null;
       })
     );
   });

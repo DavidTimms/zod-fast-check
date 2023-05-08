@@ -556,14 +556,19 @@ function unsupported(schemaTypeName: string, path: string): never {
 
 // based on the rough spec provided here: https://github.com/paralleldrive/cuid
 function createCuidArb(): Arbitrary<string> {
-  return fc.tuple(
-    fc.hexaString({minLength: 8, maxLength: 8}),
-    fc.integer({min: 0, max: 9999}).map(n => n.toString().padStart(4, '0')),
-    fc.hexaString({minLength: 4, maxLength: 4}),
-    fc.hexaString({minLength: 8, maxLength: 8}),
-  ).map(([timestamp, counter, fingerprint,  random]) =>
-    'c' + timestamp + counter + fingerprint + random
-  );
+  return fc
+    .tuple(
+      fc.hexaString({ minLength: 8, maxLength: 8 }),
+      fc
+        .integer({ min: 0, max: 9999 })
+        .map((n) => n.toString().padStart(4, "0")),
+      fc.hexaString({ minLength: 4, maxLength: 4 }),
+      fc.hexaString({ minLength: 8, maxLength: 8 })
+    )
+    .map(
+      ([timestamp, counter, fingerprint, random]) =>
+        "c" + timestamp + counter + fingerprint + random
+    );
 }
 
 function createDatetimeStringArb(
