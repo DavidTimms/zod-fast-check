@@ -120,6 +120,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
 
     "string with minimum length": z.string().min(24),
     "string with maximum length": z.string().max(24),
+    "string with fixed length": z.string().length(256),
     uuid: z.string().uuid(),
     url: z.string().url(),
     email: z.string().email(),

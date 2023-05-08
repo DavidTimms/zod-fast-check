@@ -229,6 +229,10 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "max":
           maxLength = Math.min(maxLength ?? Infinity, check.value);
           break;
+        case "length":
+          minLength = check.value;
+          maxLength = check.value;
+          break;
         case "uuid":
           return fc.uuid();
         case "email":
