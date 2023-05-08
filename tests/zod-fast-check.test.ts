@@ -126,6 +126,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "string with prefix": z.string().startsWith("prefix"),
     "string with suffix": z.string().endsWith("suffix"),
     cuid: z.string().cuid(),
+    cuid2: z.string().cuid2(),
     uuid: z.string().uuid(),
     url: z.string().url(),
     email: z.string().email(),
