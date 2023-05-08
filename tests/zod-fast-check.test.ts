@@ -256,6 +256,19 @@ describe("Generate arbitraries for Zod schema output types", () => {
     );
   });
 
+  test("trimmed string", () => {
+    const schema = z.string().trim();
+
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        value.match(/^\s/) === null &&
+        value.match(/\s$/) === null
+      })
+    );
+  });
+
   test("a branded type schema uses an arbitrary for the underlying schema", () => {
     const schema = z.string().brand<"brand">();
     type BrandedString = z.output<typeof schema>;

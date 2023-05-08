@@ -240,6 +240,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "endsWith":
           mappings.push((s) => s + check.value);
           break;
+        case "trim":
+          // No special handling needed for inputs.
+          break;
         case "uuid":
           return fc.uuid();
         case "email":
