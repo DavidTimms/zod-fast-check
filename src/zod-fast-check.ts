@@ -243,6 +243,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "trim":
           // No special handling needed for inputs.
           break;
+        case "cuid":
+          return createCuidArb();
         case "uuid":
           return fc.uuid();
         case "email":
@@ -549,6 +551,18 @@ function unsupported(schemaTypeName: string, path: string): never {
   throw new ZodFastCheckUnsupportedSchemaError(
     `Unable to generate valid values for Zod schema. ` +
       `${schemaTypeName} schemas are not supported (at path '${path || "."}').`
+  );
+}
+
+// based on the rough spec provided here: https://github.com/paralleldrive/cuid
+function createCuidArb(): Arbitrary<string> {
+  return fc.tuple(
+    fc.hexaString({minLength: 8, maxLength: 8}),
+    fc.integer({min: 0, max: 9999}).map(n => n.toString().padStart(4, '0')),
+    fc.hexaString({minLength: 4, maxLength: 4}),
+    fc.hexaString({minLength: 8, maxLength: 8}),
+  ).map(([timestamp, counter, fingerprint,  random]) =>
+    'c' + timestamp + counter + fingerprint + random
   );
 }
 
