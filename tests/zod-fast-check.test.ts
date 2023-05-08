@@ -28,7 +28,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     VictoriaSponge = "VICTORIA_SPONGE",
   }
 
-  const penguinSymbol = Symbol.for("penguin")
+  const penguinSymbol = Symbol.for("penguin");
 
   const schemas = {
     string: z.string(),
@@ -69,8 +69,10 @@ describe("Generate arbitraries for Zod schema input types", () => {
     ]),
     nan: z.nan(),
     "string branded with string": z.string().brand<"timezone">(),
-    "object branded with number": z.object({a: z.boolean()}).brand<123>(),
-    "array branded with symbol": z.array(z.number()).brand<typeof penguinSymbol>(),
+    "object branded with number": z.object({ a: z.boolean() }).brand<123>(),
+    "array branded with symbol": z
+      .array(z.number())
+      .brand<typeof penguinSymbol>(),
     "empty tuple": z.tuple([]),
     "nonempty tuple": z.tuple([z.string(), z.boolean(), z.date()]),
     "nested tuple": z.tuple([z.string(), z.tuple([z.number()])]),
@@ -121,17 +123,22 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "string with minimum length": z.string().min(24),
     "string with maximum length": z.string().max(24),
     "string with fixed length": z.string().length(256),
+    "string with prefix": z.string().startsWith("prefix"),
+    "string with suffix": z.string().endsWith("suffix"),
     uuid: z.string().uuid(),
     url: z.string().url(),
     email: z.string().email(),
     regex: z.string().regex(/\s/),
     datetime: z.string().datetime(),
-    "datetime with offset": z.string().datetime({offset: true}),
-    "datetime with low precision": z.string().datetime({precision: 0}),
-    "datetime with high precision": z.string().datetime({precision: 6}),
+    "datetime with offset": z.string().datetime({ offset: true }),
+    "datetime with low precision": z.string().datetime({ precision: 0 }),
+    "datetime with high precision": z.string().datetime({ precision: 6 }),
     "number to string transformer": z.number().transform(String),
     "deeply nested transformer": z.array(z.boolean().transform(Number)),
-    "string to number pipeline": z.string().transform(s => s.length).pipe(z.number().min(5)),
+    "string to number pipeline": z
+      .string()
+      .transform((s) => s.length)
+      .pipe(z.number().min(5)),
     "Coerced string": z.coerce.string(),
     "Coerced number": z.coerce.number(),
     "Coerced boolean": z.coerce.boolean(),
@@ -252,19 +259,22 @@ describe("Generate arbitraries for Zod schema output types", () => {
   test("a branded type schema uses an arbitrary for the underlying schema", () => {
     const schema = z.string().brand<"brand">();
     type BrandedString = z.output<typeof schema>;
-    
+
     const arbitrary = ZodFastCheck().outputOf(schema);
 
     return fc.assert(
       fc.property(arbitrary, (value: BrandedString) => {
         expect(typeof value).toBe("string");
       })
-    )
+    );
   });
 
   test("string to number pipeline", () => {
     const targetSchema = z.number().min(5).int();
-    const schema = z.string().transform(s => s.length).pipe(z.number().min(5));
+    const schema = z
+      .string()
+      .transform((s) => s.length)
+      .pipe(z.number().min(5));
 
     const arbitrary = ZodFastCheck().outputOf(schema);
 

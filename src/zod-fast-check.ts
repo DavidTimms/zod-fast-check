@@ -219,7 +219,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodString(schema: ZodString, path: string) {
     let minLength = 0;
     let maxLength: number | null = null;
-    let hasRegexCheck = false;
+    let hasUnsupportedCheck = false;
+    const mappings: Array<(s: string) => string> = [];
 
     for (const check of schema._def.checks) {
       switch (check.kind) {
@@ -233,6 +234,12 @@ const arbitraryBuilders: ArbitraryBuilders = {
           minLength = check.value;
           maxLength = check.value;
           break;
+        case "startsWith":
+          mappings.push((s) => check.value + s);
+          break;
+        case "endsWith":
+          mappings.push((s) => s + check.value);
+          break;
         case "uuid":
           return fc.uuid();
         case "email":
@@ -241,20 +248,23 @@ const arbitraryBuilders: ArbitraryBuilders = {
           return fc.webUrl();
         case "datetime":
           return createDatetimeStringArb(schema, check);
-        case "regex":
-          hasRegexCheck = true;
-          break;
+        default:
+          hasUnsupportedCheck = true;
       }
     }
 
     if (maxLength === null) maxLength = 2 * minLength + 10;
 
-    const unfiltered = fc.string({
+    let unfiltered = fc.string({
       minLength,
       maxLength,
     });
 
-    if (hasRegexCheck) {
+    for (let mapping of mappings) {
+      unfiltered = unfiltered.map(mapping);
+    }
+
+    if (hasUnsupportedCheck) {
       return filterArbitraryBySchema(unfiltered, schema, path);
     } else {
       return unfiltered;
