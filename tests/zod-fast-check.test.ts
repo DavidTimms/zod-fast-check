@@ -119,6 +119,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     negative: z.number().negative(),
     nonpositive: z.number().nonpositive(),
     nonnegative: z.number().nonnegative(),
+    finite: z.number().finite(),
     "number with custom refinement": z.number().refine((x) => x % 3 === 0),
 
     "string with minimum length": z.string().min(24),

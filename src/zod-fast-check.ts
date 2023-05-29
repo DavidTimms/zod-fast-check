@@ -282,6 +282,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
     let min = Number.MIN_SAFE_INTEGER;
     let max = Number.MAX_SAFE_INTEGER;
     let isInt = false;
+    let isFinite = false;
 
     for (const check of schema._def.checks) {
       switch (check.kind) {
@@ -292,6 +293,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
           );
           break;
         case "max":
+          isFinite = true;
           max = Math.min(
             max,
             check.inclusive ? check.value : check.value - 0.001
@@ -300,13 +302,16 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "int":
           isInt = true;
           break;
+        case "finite":
+          isFinite = true;
+          break;
       }
     }
 
     if (isInt) {
       return fc.integer({ min, max });
     } else {
-      return fc.double({
+      const finiteArb = fc.double({
         min,
         max,
         // fast-check 3 considers NaN to be a Number by default,
@@ -314,6 +319,12 @@ const arbitraryBuilders: ArbitraryBuilders = {
         // see https://github.com/dubzzz/fast-check/blob/main/packages/fast-check/MIGRATION_2.X_TO_3.X.md#new-floating-point-arbitraries-
         noNaN: true,
       });
+
+      if (isFinite) {
+        return finiteArb;
+      } else {
+        return fc.oneof(finiteArb, fc.constant(Infinity));
+      }
     }
   },
   ZodBigInt() {
