@@ -2,7 +2,6 @@ import fc, { Arbitrary } from "fast-check";
 import {
   input,
   output,
-  Primitive,
   ZodArray,
   ZodArrayDef,
   ZodBranded,
@@ -13,6 +12,7 @@ import {
   ZodEffects,
   ZodEnum,
   ZodFirstPartySchemaTypes,
+  ZodFirstPartyTypeKind,
   ZodFunction,
   ZodLiteral,
   ZodMap,
@@ -28,6 +28,7 @@ import {
   ZodSchema,
   ZodSet,
   ZodString,
+  ZodSymbol,
   ZodTuple,
   ZodTypeDef,
   ZodUnion,
@@ -48,16 +49,18 @@ type ArbitraryBuilder<Schema extends UnknownZodSchema> = (
   recurse: SchemaToArbitrary
 ) => Arbitrary<Schema["_input"]>;
 
-type ZodFirstPartyTypeKind = ZodFirstPartySchemaTypes["_def"]["typeName"];
-
 type ArbitraryBuilders = {
   [TypeName in ZodFirstPartyTypeKind]: ArbitraryBuilder<
     ExtractFirstPartySchemaType<TypeName>
   >;
 };
 
+// ZodSymbol is missing from the union for first-party types, so we use this
+// type instead which includes it.
+type AllFirstPartySchemaTypes = ZodFirstPartySchemaTypes | ZodSymbol;
+
 type ExtractFirstPartySchemaType<TypeName extends ZodFirstPartyTypeKind> =
-  Extract<ZodFirstPartySchemaTypes, { _def: { typeName: TypeName } }>;
+  Extract<AllFirstPartySchemaTypes, { _def: { typeName: TypeName } }>;
 
 const SCALAR_TYPES = new Set<`${ZodFirstPartyTypeKind}`>([
   "ZodString",
@@ -148,7 +151,7 @@ class _ZodFastCheck {
     if (
       isFirstPartyType(schema) &&
       SCALAR_TYPES.has(
-        `${(schema as ZodFirstPartySchemaTypes)._def.typeName}` as const
+        `${(schema as AllFirstPartySchemaTypes)._def.typeName}` as const
       )
     ) {
       return inputArbitrary as Arbitrary<any>;
@@ -207,7 +210,7 @@ ZodFastCheck.prototype = _ZodFastCheck.prototype;
 
 function isFirstPartyType(
   schema: UnknownZodSchema
-): schema is ZodFirstPartySchemaTypes {
+): schema is AllFirstPartySchemaTypes {
   const typeName = (schema._def as { typeName?: string }).typeName;
   return (
     !!typeName &&
@@ -538,6 +541,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
         path
       )
     );
+  },
+  ZodSymbol() {
+    return fc.string().map((s) => Symbol(s));
   },
 };
 

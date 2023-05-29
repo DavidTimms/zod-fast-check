@@ -91,6 +91,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "literal number": z.literal(123.5),
     "literal string": z.literal("hello"),
     "literal boolean": z.literal(false),
+    "literal symbol": z.literal(Symbol("mySymbol")),
     enum: z.enum(["Bear", "Wolf", "Fox"]),
     "native enum with numeric values": z.nativeEnum(Biscuits),
     "native enum with string values": z.nativeEnum(Cakes),
@@ -147,6 +148,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "Coerced bigint": z.coerce.bigint(),
     "Coerced date": z.coerce.date(),
     "string with catch": z.string().catch("fallback"),
+    symbol: z.symbol(),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
