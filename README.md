@@ -88,7 +88,7 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 
 ### Data types
 
-✅ string (including email, UUID and URL)  
+✅ string (including email, datetime, UUID and URL)  
 ✅ number  
 ✅ nan  
 ✅ bigint  
@@ -96,6 +96,7 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ✅ date  
 ✅ undefined  
 ✅ null  
+✅ symbol
 ✅ array  
 ✅ object  
 ✅ union  
@@ -118,6 +119,8 @@ const arbitrary = zodFastCheck.inputOf(z.array(WithFoo));
 ✅ branded types  
 ✅ transforms  
 ✅ refinements (see below)  
+✅ pipe  
+✅ catch  
 ❌ intersection  
 ❌ lazy  
 ❌ never
