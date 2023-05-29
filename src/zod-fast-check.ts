@@ -281,8 +281,8 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodNumber(schema: ZodNumber) {
     let min = Number.MIN_SAFE_INTEGER;
     let max = Number.MAX_SAFE_INTEGER;
-    let isInt = false;
     let isFinite = false;
+    let multipleOf: number | null = null;
 
     for (const check of schema._def.checks) {
       switch (check.kind) {
@@ -300,16 +300,25 @@ const arbitraryBuilders: ArbitraryBuilders = {
           );
           break;
         case "int":
-          isInt = true;
+          multipleOf ??= 1;
           break;
         case "finite":
           isFinite = true;
           break;
+        case "multipleOf":
+          multipleOf = (multipleOf ?? 1) * check.value;
+          break;
       }
     }
 
-    if (isInt) {
-      return fc.integer({ min, max });
+    if (multipleOf !== null) {
+      const factor = multipleOf;
+      return fc
+        .integer({
+          min: Math.ceil(min / factor),
+          max: Math.floor(max / factor),
+        })
+        .map((x) => x * factor);
     } else {
       const finiteArb = fc.double({
         min,

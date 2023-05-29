@@ -120,6 +120,9 @@ describe("Generate arbitraries for Zod schema input types", () => {
     nonpositive: z.number().nonpositive(),
     nonnegative: z.number().nonnegative(),
     finite: z.number().finite(),
+    "multiple of": z.number().multipleOf(3),
+    "multiple multiple of": z.number().multipleOf(3).multipleOf(5),
+    "multiple of with min and max": z.number().multipleOf(10).min(67).max(99),
     "number with custom refinement": z.number().refine((x) => x % 3 === 0),
 
     "string with minimum length": z.string().min(24),
