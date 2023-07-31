@@ -397,7 +397,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
   },
   ZodRecord(schema: ZodRecord, path: string, recurse: SchemaToArbitrary) {
     return fc.dictionary(
-      fc.string(),
+      recurse(schema._def.keyType, path),
       recurse(schema._def.valueType, path + "[*]")
     );
   },
