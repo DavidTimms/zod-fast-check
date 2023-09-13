@@ -78,6 +78,9 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "nested tuple": z.tuple([z.string(), z.tuple([z.number()])]),
     "record of numbers": z.record(z.number()),
     "record of objects": z.record(z.object({ name: z.string() })),
+    "record of strings": z.record(z.string()),
+    "record of strings with min-length values": z.record(z.string().min(1)),
+    "record of strings with min-length keys": z.record(z.string().min(1), z.string()),
     "map with string keys": z.map(z.string(), z.number()),
     "map with object keys": z.map(
       z.object({ id: z.number() }),
