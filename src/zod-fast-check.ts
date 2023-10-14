@@ -24,6 +24,7 @@ import {
   ZodPipeline,
   ZodPromise,
   ZodRawShape,
+  ZodReadonly,
   ZodRecord,
   ZodSchema,
   ZodSet,
@@ -35,6 +36,9 @@ import {
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
+
+const ZOD_EMAIL_REGEX =
+  /^(?!\.)(?!.*\.\.)([A-Z0-9_+-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i;
 
 type UnknownZodSchema = ZodSchema<unknown, ZodTypeDef, unknown>;
 
@@ -55,9 +59,12 @@ type ArbitraryBuilders = {
   >;
 };
 
-// ZodSymbol is missing from the union for first-party types, so we use this
-// type instead which includes it.
-type AllFirstPartySchemaTypes = ZodFirstPartySchemaTypes | ZodSymbol;
+// ZodSymbol and ZodReadonly are missing from the union for first-party types,
+// so we use this type instead which includes it.
+type AllFirstPartySchemaTypes =
+  | ZodFirstPartySchemaTypes
+  | ZodSymbol
+  | ZodReadonly<UnknownZodSchema>;
 
 type ExtractFirstPartySchemaType<TypeName extends ZodFirstPartyTypeKind> =
   Extract<AllFirstPartySchemaTypes, { _def: { typeName: TypeName } }>;
@@ -251,7 +258,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "uuid":
           return fc.uuid();
         case "email":
-          return fc.emailAddress();
+          return fc
+            .emailAddress()
+            .filter((email) => ZOD_EMAIL_REGEX.test(email));
         case "url":
           return fc.webUrl();
         case "datetime":
@@ -564,6 +573,13 @@ const arbitraryBuilders: ArbitraryBuilders = {
   },
   ZodSymbol() {
     return fc.string().map((s) => Symbol(s));
+  },
+  ZodReadonly(
+    schema: ZodReadonly<UnknownZodSchema>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    return recurse(schema._def.innerType, path);
   },
 };
 

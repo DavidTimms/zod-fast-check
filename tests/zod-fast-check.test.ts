@@ -80,7 +80,10 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "record of objects": z.record(z.object({ name: z.string() })),
     "record of strings": z.record(z.string()),
     "record of strings with min-length values": z.record(z.string().min(1)),
-    "record of strings with min-length keys": z.record(z.string().min(1), z.string()),
+    "record of strings with min-length keys": z.record(
+      z.string().min(1),
+      z.string()
+    ),
     "map with string keys": z.map(z.string(), z.number()),
     "map with object keys": z.map(
       z.object({ id: z.number() }),
@@ -156,6 +159,10 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "Coerced date": z.coerce.date(),
     "string with catch": z.string().catch("fallback"),
     symbol: z.symbol(),
+    "readonly array": z.array(z.unknown()).readonly(),
+    "readonly tuple": z.tuple([z.string(), z.number()]).readonly(),
+    "readonly map": z.map(z.string(), z.date()).readonly(),
+    "readonly set": z.set(z.string()).readonly(),
   };
 
   for (const [name, schema] of Object.entries(schemas)) {
@@ -304,6 +311,17 @@ describe("Generate arbitraries for Zod schema output types", () => {
     return fc.assert(
       fc.property(arbitrary, (value) => {
         targetSchema.parse(value);
+      })
+    );
+  });
+
+  test("readonly outputs cannot be modified", () => {
+    const schema = z.array(z.number()).readonly();
+    const arbitrary = ZodFastCheck().outputOf(schema);
+
+    return fc.assert(
+      fc.property(arbitrary, (value) => {
+        expect(() => (value as number[]).push(1)).toThrow();
       })
     );
   });

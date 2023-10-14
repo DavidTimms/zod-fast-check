@@ -42,7 +42,7 @@
     "prettier": "^2.2.1",
     "ts-jest": "^26.4.4",
     "typescript": "^4.7.4",
-    "zod": "^3.20.5"
+    "zod": "^3.22.4"
   },
   "peerDependencies": {
     "fast-check": ">2.23.0 <4.0.0",
