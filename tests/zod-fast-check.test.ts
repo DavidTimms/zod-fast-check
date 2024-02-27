@@ -273,9 +273,9 @@ describe("Generate arbitraries for Zod schema output types", () => {
     const arbitrary = ZodFastCheck().outputOf(schema);
 
     return fc.assert(
-      fc.property(arbitrary, (value) => {
-        value.match(/^\s/) === null && value.match(/\s$/) === null;
-      })
+      fc.property(arbitrary, (value) => 
+        expect(value).not.toMatch(/(^\s)|(\s$)/)
+      )
     );
   });
 
