@@ -32,6 +32,7 @@ import {
   ZodTuple,
   ZodTypeDef,
   ZodUnion,
+  ZodReadonly
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
@@ -247,6 +248,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
           break;
         case "trim":
           // No special handling needed for inputs.
+          // todo - should this actually alter the string with map and trim it?
           break;
         case "cuid":
           return createCuidArb();
@@ -340,8 +342,28 @@ const arbitraryBuilders: ArbitraryBuilders = {
       }
     }
   },
-  ZodBigInt() {
-    return fc.bigInt();
+  ZodBigInt(schema) {
+    let min = undefined;
+    let max = undefined;
+
+    for (const check of schema._def.checks) {
+        let value = check.value;
+        switch (check.kind) {
+            case "min":
+                value = check.inclusive ? value : value + BigInt(1);
+                min = min === undefined || value < min ? value : min;
+                break;
+            case "max":
+                value = check.inclusive ? value : value - BigInt(1);
+                max = max === undefined || value > max ? value : max;
+                break;
+            case "multipleOf":
+                // todo
+                break;
+        }
+    }
+
+    return fc.bigInt({ min, max });
   },
   ZodBoolean() {
     return fc.boolean();
@@ -569,9 +591,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodSymbol() {
     return fc.string().map((s) => Symbol(s));
   },
-  ZodReadonly(_, path) {
-    unsupported("Readonly", path);
-  },
+  ZodReadonly(schema: ZodReadonly<UnknownZodSchema>, path: string, recurse: SchemaToArbitrary) {
+    return recurse(schema._def.innerType, path).map((value) => Object.freeze(value));
+  }
 };
 
 export class ZodFastCheckError extends Error {}
