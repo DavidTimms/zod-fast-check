@@ -6,6 +6,11 @@ jobs:
   build:
     runs-on: ubuntu-20.04
 
+    strategy:
+      matrix:
+        zod-version: ["3.18.0", "3.25.76"]
+        fast-check-version: ["2.23.0", "3.0.0", "3.23.2"]
+
     steps:
       - name: Checkout the code
         uses: actions/checkout@v2
@@ -15,7 +20,7 @@ jobs:
           node-version: 16.x
       - name: Install dependencies
         run: npm ci
-      # - name: Lint code
-      #   run: npm run lint
+      - name: Install specific versions of Zod and Fast-Check
+        run: npm install --no-save zod@${{ matrix.zod-version }} fast-check@${{ matrix.fast-check-version }}
       - name: Run tests
         run: timeout 60 npm test
