@@ -35,6 +35,8 @@ import {
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
+const ZOD_EMAIL_REGEX =
+  /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i;
 
 type UnknownZodSchema = ZodSchema<unknown, ZodTypeDef, unknown>;
 
@@ -251,7 +253,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "uuid":
           return fc.uuid();
         case "email":
-          return fc.emailAddress();
+          return fc
+            .emailAddress()
+            .filter((email) => ZOD_EMAIL_REGEX.test(email));
         case "url":
           return fc.webUrl();
         case "datetime":
@@ -564,6 +568,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
   },
   ZodSymbol() {
     return fc.string().map((s) => Symbol(s));
+  },
+  ZodReadonly(_, path) {
+    unsupported("Readonly", path);
   },
 };
 
