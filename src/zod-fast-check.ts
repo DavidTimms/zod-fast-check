@@ -246,7 +246,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
           mappings.push((s) => s + check.value);
           break;
         case "trim":
-          // No special handling needed for inputs.
+          mappings.push((s) => s.trim());
           break;
         case "cuid":
           return createCuidArb();
