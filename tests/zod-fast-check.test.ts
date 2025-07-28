@@ -13,7 +13,7 @@ import {
   ZodFastCheck,
   ZodFastCheckGenerationError,
   ZodFastCheckUnsupportedSchemaError,
-} from "../src/zod-fast-check";
+} from "./zod-fast-check-module-proxy";
 
 describe("Generate arbitraries for Zod schema input types", () => {
   enum Biscuits {
@@ -80,7 +80,10 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "record of objects": z.record(z.object({ name: z.string() })),
     "record of strings": z.record(z.string()),
     "record of strings with min-length values": z.record(z.string().min(1)),
-    "record of strings with min-length keys": z.record(z.string().min(1), z.string()),
+    "record of strings with min-length keys": z.record(
+      z.string().min(1),
+      z.string()
+    ),
     "map with string keys": z.map(z.string(), z.number()),
     "map with object keys": z.map(
       z.object({ id: z.number() }),
