@@ -1,4 +1,8 @@
 module.exports = {
-  preset: "ts-jest/presets/js-with-ts",
+  transform: 
+    {
+      "^.+\\.ts$": [ "ts-jest", { "rootDir": "." } ]
+    }
+  ,
   testEnvironment: "node",
 };
