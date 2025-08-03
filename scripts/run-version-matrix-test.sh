@@ -8,4 +8,4 @@ echo 'export * from "../dist/zod-fast-check";' > ./tests/zod-fast-check-module-p
 tsc --project tests
 npm install --no-save $@
 echo "Running tests against versions $@"
-jest dist/*.test.js
+npm run test dist/

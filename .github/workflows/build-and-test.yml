@@ -20,5 +20,7 @@ jobs:
           node-version: "22"
       - name: Install dependencies
         run: npm ci
+      - name: Check formatting
+        run: npm run lint
       - name: Run tests with specific versions of Zod and Fast-Check
         run: timeout 180 bash ./scripts/run-version-matrix-test.sh zod@${{ matrix.zod-version }} fast-check@${{ matrix.fast-check-version }}
