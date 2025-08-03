@@ -1,14 +1,7 @@
 import fc from "fast-check";
+import * as z3 from "zod/v3";
+import * as z4 from "zod/v4";
 import * as z from "zod";
-import {
-  INVALID,
-  OK,
-  ParseInput,
-  ParseReturnType,
-  ZodSchema,
-  ZodTypeAny,
-  ZodTypeDef,
-} from "zod";
 import {
   ZodFastCheck,
   ZodFastCheckGenerationError,
@@ -30,7 +23,7 @@ describe("Generate arbitraries for Zod schema input types", () => {
 
   const penguinSymbol = Symbol.for("penguin");
 
-  const schemas: Record<string, () => ZodSchema> = {
+  const schemas: Record<string, () => z3.ZodTypeAny | z4.ZodType> = {
     string: () => z.string(),
     number: () => z.number(),
     bigint: () => z.bigint(),
@@ -79,11 +72,12 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "empty tuple": () => z.tuple([]),
     "nonempty tuple": () => z.tuple([z.string(), z.boolean(), z.date()]),
     "nested tuple": () => z.tuple([z.string(), z.tuple([z.number()])]),
-    "record of numbers": () => z.record(z.number()),
-    "record of objects": () => z.record(z.object({ name: z.string() })),
-    "record of strings": () => z.record(z.string()),
+    "record of numbers": () => z.record(z.string(), z.number()),
+    "record of objects": () =>
+      z.record(z.string(), z.object({ name: z.string() })),
+    "record of strings": () => z.record(z.string(), z.string()),
     "record of strings with min-length values": () =>
-      z.record(z.string().min(1)),
+      z.record(z.string(), z.string().min(1)),
     "record of strings with min-length keys": () =>
       z.record(z.string().min(1), z.string()),
     "map with string keys": () => z.map(z.string(), z.number()),
@@ -93,11 +87,12 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "nonempty set": () => z.set(z.number()).nonempty(),
     "set with min": () => z.set(z.number()).min(2),
     "set with max": () => z.set(z.number()).max(3),
-    "function returning boolean": () => z.function().returns(z.boolean()),
+    "function returning boolean (Zod 3)": () =>
+      z3.function().returns(z.boolean()),
     "literal number": () => z.literal(123.5),
     "literal string": () => z.literal("hello"),
     "literal boolean": () => z.literal(false),
-    "literal symbol": () => z.literal(Symbol("mySymbol")),
+    "literal symbol (Zod 3)": () => z3.literal(Symbol("mySymbol")),
     enum: () => z.enum(["Bear", "Wolf", "Fox"]),
     "native enum with numeric values": () => z.nativeEnum(Biscuits),
     "native enum with string values": () => z.nativeEnum(Cakes),
@@ -428,7 +423,7 @@ describe("Throwing an error if it is not able to generate a value", () => {
 
   const cases: {
     description: string;
-    schema: ZodTypeAny;
+    schema: z3.ZodTypeAny | z4.ZodType;
     expectedErrorPath: string;
   }[] = [
     {
@@ -457,7 +452,7 @@ describe("Throwing an error if it is not able to generate a value", () => {
     {
       description: "tuples",
       schema: z.object({
-        scores: z.record(impossible),
+        scores: z.record(z.string(), impossible),
       }),
       expectedErrorPath: ".scores[*]",
     },
@@ -590,16 +585,16 @@ describe("Throwing an error if the schema type is not supported", () => {
   });
 
   test("third-party schemas", () => {
-    interface ZodSymbolDef extends ZodTypeDef {
+    interface ZodSymbolDef extends z3.ZodTypeDef {
       symbol: Symbol;
     }
 
-    class SymbolSchema extends ZodSchema<Symbol, ZodSymbolDef, Symbol> {
-      _parse({ data }: ParseInput): ParseReturnType<Symbol> {
+    class SymbolSchema extends z3.ZodSchema<Symbol, ZodSymbolDef, Symbol> {
+      _parse({ data }: z3.ParseInput): z3.ParseReturnType<Symbol> {
         if (data === this._def.symbol) {
-          return OK(data);
+          return z3.OK(data);
         }
-        return INVALID;
+        return z3.INVALID;
       }
     }
 
@@ -614,12 +609,12 @@ describe("Throwing an error if the schema type is not supported", () => {
   });
 });
 
-function testIfSchemaSupported(
+function testIfSchemaSupported<Schema extends z3.ZodTypeAny | z4.ZodType>(
   name: string,
-  buildSchema: () => ZodSchema,
-  testBody: (s: ZodSchema) => void | Promise<void>
+  buildSchema: () => Schema,
+  testBody: (s: Schema) => void | Promise<void>
 ): void {
-  let schema: ZodSchema;
+  let schema: Schema;
   try {
     schema = buildSchema();
   } catch (error) {

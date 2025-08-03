@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        zod-version: ["3.18.0", "3.25.76"]
+        zod-version: ["3.25.76", "4.0.14"]
         fast-check-version: ["2.23.0", "3.0.0", "3.23.2"]
 
     steps:
