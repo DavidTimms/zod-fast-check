@@ -344,12 +344,12 @@ const arbitraryBuilders: ArbitraryBuilders = {
     }
   },
   ZodBigInt(schema: ZodBigInt, path: string) {
+    if (!schema._def.checks) {
+      return fc.bigInt();
+    }
+
     let min = undefined;
     let max = undefined;
-
-    if (!schema._def.checks) {
-      unsupported(`BigInt`, path);
-    }
 
     for (const check of schema._def.checks) {
       let value = check.value;
