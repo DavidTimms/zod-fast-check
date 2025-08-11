@@ -32,7 +32,7 @@ import {
   ZodTuple,
   ZodTypeDef,
   ZodUnion,
-  ZodReadonly,
+  type ZodReadonly,
   type ZodBigInt,
 } from "zod";
 
