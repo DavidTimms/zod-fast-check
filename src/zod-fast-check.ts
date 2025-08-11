@@ -343,7 +343,7 @@ const arbitraryBuilders: ArbitraryBuilders = {
       }
     }
   },
-  ZodBigInt(schema: ZodBigInt, path: string) {
+  ZodBigInt(schema: ZodBigInt) {
     // older versions of zod don't have "checks" in the _def.
     if (!schema._def.checks) {
       return fc.bigInt();
