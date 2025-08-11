@@ -249,7 +249,6 @@ const arbitraryBuilders: ArbitraryBuilders = {
           break;
         case "trim":
           // No special handling needed for inputs.
-          // todo - should this actually alter the string with map and trim it?
           break;
         case "cuid":
           return createCuidArb();
