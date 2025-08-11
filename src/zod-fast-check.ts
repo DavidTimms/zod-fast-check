@@ -32,10 +32,13 @@ import {
   ZodTuple,
   ZodTypeDef,
   ZodUnion,
-  ZodReadonly
+  ZodReadonly,
+  type ZodBigInt,
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
+const ZOD_EMAIL_REGEX =
+  /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i;
 
 type UnknownZodSchema = ZodSchema<unknown, ZodTypeDef, unknown>;
 
@@ -253,9 +256,9 @@ const arbitraryBuilders: ArbitraryBuilders = {
         case "uuid":
           return fc.uuid();
         case "email":
-          // todo - remove once zod fixes special character support
-          const regex = new RegExp('[^a-zA-Z0-9@\\.\\+-]');
-          return fc.emailAddress().filter((email) => !regex.test(email));
+          return fc
+            .emailAddress()
+            .filter((email) => ZOD_EMAIL_REGEX.test(email));
         case "url":
           return fc.webUrl();
         case "datetime":
@@ -340,25 +343,29 @@ const arbitraryBuilders: ArbitraryBuilders = {
       }
     }
   },
-  ZodBigInt(schema) {
+  ZodBigInt(schema: ZodBigInt, path: string) {
     let min = undefined;
     let max = undefined;
 
+    if (!schema._def.checks) {
+      unsupported(`BigInt`, path);
+    }
+
     for (const check of schema._def.checks) {
-        let value = check.value;
-        switch (check.kind) {
-            case "min":
-                value = check.inclusive ? value : value + BigInt(1);
-                min = min === undefined || value < min ? value : min;
-                break;
-            case "max":
-                value = check.inclusive ? value : value - BigInt(1);
-                max = max === undefined || value > max ? value : max;
-                break;
-            case "multipleOf":
-                // todo
-                break;
-        }
+      let value = check.value;
+      switch (check.kind) {
+        case "min":
+          value = check.inclusive ? value : value + BigInt(1);
+          min = min === undefined || value < min ? value : min;
+          break;
+        case "max":
+          value = check.inclusive ? value : value - BigInt(1);
+          max = max === undefined || value > max ? value : max;
+          break;
+        case "multipleOf":
+          // todo
+          break;
+      }
     }
 
     return fc.bigInt({ min, max });
@@ -589,9 +596,15 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodSymbol() {
     return fc.string().map((s) => Symbol(s));
   },
-  ZodReadonly(schema: ZodReadonly<UnknownZodSchema>, path: string, recurse: SchemaToArbitrary) {
-    return recurse(schema._def.innerType, path).map((value) => Object.freeze(value));
-  }
+  ZodReadonly(
+    schema: ZodReadonly<UnknownZodSchema>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    return recurse(schema._def.innerType, path).map((value) =>
+      Object.freeze(value)
+    );
+  },
 };
 
 export class ZodFastCheckError extends Error {}

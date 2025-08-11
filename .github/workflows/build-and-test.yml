@@ -4,18 +4,23 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
+
+    strategy:
+      matrix:
+        zod-version: ["3.18.0", "3.25.76"]
+        fast-check-version: ["2.23.0", "3.0.0", "3.23.2"]
 
     steps:
       - name: Checkout the code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
-          node-version: 16.x
+          node-version: "22"
       - name: Install dependencies
         run: npm ci
-      # - name: Lint code
-      #   run: npm run lint
-      - name: Run tests
-        run: timeout 60 npm test
+      - name: Check formatting
+        run: npm run lint
+      - name: Run tests with specific versions of Zod and Fast-Check
+        run: timeout 180 bash ./scripts/run-version-matrix-test.sh zod@${{ matrix.zod-version }} fast-check@${{ matrix.fast-check-version }}
