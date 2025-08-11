@@ -32,6 +32,8 @@ import {
   ZodTuple,
   ZodTypeDef,
   ZodUnion,
+  type ZodReadonly,
+  type ZodBigInt,
 } from "zod";
 
 const MIN_SUCCESS_RATE = 0.01;
@@ -340,8 +342,45 @@ const arbitraryBuilders: ArbitraryBuilders = {
       }
     }
   },
-  ZodBigInt() {
-    return fc.bigInt();
+  ZodBigInt(schema: ZodBigInt) {
+    // older versions of zod don't have "checks" in the _def.
+    if (!schema._def.checks) {
+      return fc.bigInt();
+    }
+
+    let min: bigint | undefined = undefined;
+    let max: bigint | undefined = undefined;
+    const multipleOf: bigint[] = [];
+
+    for (const check of schema._def.checks) {
+      let value = check.value;
+      switch (check.kind) {
+        case "min":
+          value = check.inclusive ? value : value + BigInt(1);
+          min = min === undefined || value < min ? value : min;
+          break;
+        case "max":
+          value = check.inclusive ? value : value - BigInt(1);
+          max = max === undefined || value > max ? value : max;
+          break;
+        case "multipleOf":
+          multipleOf.push(value);
+          break;
+      }
+    }
+
+    const arb = fc.bigInt({ min, max });
+
+    if (!multipleOf.length) {
+      return arb;
+    }
+
+    // chaining multipleOf combines them all into an AND so we just need to find the first where it doesn't match the check.
+    return arb.filter(
+      (val) =>
+        multipleOf.find((multiple) => val % multiple !== BigInt(0)) ===
+        undefined
+    );
   },
   ZodBoolean() {
     return fc.boolean();
@@ -569,8 +608,14 @@ const arbitraryBuilders: ArbitraryBuilders = {
   ZodSymbol() {
     return fc.string().map((s) => Symbol(s));
   },
-  ZodReadonly(_, path) {
-    unsupported("Readonly", path);
+  ZodReadonly(
+    schema: ZodReadonly<UnknownZodSchema>,
+    path: string,
+    recurse: SchemaToArbitrary
+  ) {
+    return recurse(schema._def.innerType, path).map((value) =>
+      Object.freeze(value)
+    );
   },
 };
 
