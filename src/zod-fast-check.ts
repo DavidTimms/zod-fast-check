@@ -344,12 +344,14 @@ const arbitraryBuilders: ArbitraryBuilders = {
     }
   },
   ZodBigInt(schema: ZodBigInt, path: string) {
+    // older versions of zod don't have "checks" in the _def.
     if (!schema._def.checks) {
       return fc.bigInt();
     }
 
-    let min = undefined;
-    let max = undefined;
+    let min: bigint | undefined = undefined;
+    let max: bigint | undefined = undefined;
+    const multipleOf: bigint[] = [];
 
     for (const check of schema._def.checks) {
       let value = check.value;
@@ -363,12 +365,23 @@ const arbitraryBuilders: ArbitraryBuilders = {
           max = max === undefined || value > max ? value : max;
           break;
         case "multipleOf":
-          // todo
+          multipleOf.push(value);
           break;
       }
     }
 
-    return fc.bigInt({ min, max });
+    const arb = fc.bigInt({ min, max });
+
+    if (!multipleOf.length) {
+      return arb;
+    }
+
+    // chaining multipleOf combines them all into an AND so we just need to find the first where it doesn't match the check.
+    return arb.filter(
+      (val) =>
+        multipleOf.find((multiple) => val % multiple !== BigInt(0)) ===
+        undefined
+    );
   },
   ZodBoolean() {
     return fc.boolean();

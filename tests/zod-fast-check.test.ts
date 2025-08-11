@@ -174,7 +174,8 @@ describe("Generate arbitraries for Zod schema input types", () => {
     "bigint nonnegative": () => z.bigint().nonnegative(),
     "bigint negative": () => z.bigint().negative(),
     "bigint nonpositive": () => z.bigint().nonpositive(),
-    // todo - "bigint multipleof": () => z.bigint().multipleOf(BigInt(5)),
+    "bigint multipleof": () => z.bigint().multipleOf(BigInt(5)),
+    "bigint multiple multipleof": () => z.bigint().multipleOf(BigInt(4)).multipleOf(BigInt(6)),
   };
 
   for (const [name, buildSchema] of Object.entries(schemas)) {
